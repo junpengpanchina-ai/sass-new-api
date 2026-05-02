@@ -20,7 +20,8 @@
 .
 ├── apps/
 │   ├── web/        # Next.js/前台 + 控制台
-│   └── gateway/    # FastAPI/网关（OpenAI-compatible）
+│   ├── dmit-api/   # DMIT Node 网关（Supabase service role / Webhook / 上游）
+│   └── gateway/    # FastAPI/网关（OpenAI-compatible，草案）
 ├── packages/
 │   └── shared/     # 共享类型/校验/常量（可选）
 ├── docs/
@@ -35,6 +36,11 @@
 - Sprint 1 详细任务单：见 `docs/sprint-1-detailed.md`
 - 项目介绍：见 `docs/project-intro.md`
 - 系统规格（完整版本）：见 `docs/system-spec.md`
+- 部署拓扑与安全边界：见 `docs/architecture.md`
+- Supabase Schema V1（冻结 DDL）：见 `docs/supabase-schema-v1.sql`
+- V1 角色权限矩阵（字段 / 页面 / 接口）：见 `docs/role-permissions-matrix-v1.md`
+- Supabase RLS 初稿（按矩阵落地）：见 `docs/supabase-rls-v1.md`
+- DMIT 接 Supabase 最小清单与 Nginx：见 `docs/dmit-api-minimal-supabase.md`（代码 `apps/dmit-api/`）
 - 用户分销管理：见 `docs/affiliate-distribution.md`
 - 管理员账号：见 `docs/admin-accounts.md`
 - 分析工具设置（GA4 / Umami）：见 `docs/analytics.md`

@@ -1,0 +1,20 @@
+{
+  "name": "dmit-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DMIT API gateway: Supabase service role, Stripe webhook, GRSAI proxy (incremental)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
