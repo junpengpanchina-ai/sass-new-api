@@ -7,16 +7,11 @@ type UiModel = {
   enabled: boolean;
 };
 
-async function getModels() {
-  const res = await fetch("http://localhost:3000/api/models", { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`Failed to fetch models: ${res.status}`);
-  }
-  return (await res.json()) as { data: UiModel[]; updatedAt: string };
-}
+import { MODELS } from "@/lib/models";
 
 export default async function ModelsPage() {
-  const { data, updatedAt } = await getModels();
+  const data = MODELS as UiModel[];
+  const updatedAt = new Date().toISOString();
 
   return (
     <main className="card" style={{ padding: 18 }}>
