@@ -121,3 +121,19 @@ alter table public.products enable row level security;
 alter table public.customers enable row level security;
 alter table public.ops_orders enable row level security;
 
+-- -----------------------------------------------------------------------------
+-- 4) ops_settings（运营后台配置：如文档链接）
+-- -----------------------------------------------------------------------------
+create table if not exists public.ops_settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_ops_settings_set_updated_at on public.ops_settings;
+create trigger trg_ops_settings_set_updated_at
+  before update on public.ops_settings
+  for each row execute function public.set_updated_at();
+
+alter table public.ops_settings enable row level security;
+

@@ -20,6 +20,8 @@ const adminCustomersRouter = require("./routes/admin.customers");
 const adminOrdersRouter = require("./routes/admin.orders");
 const adminUsageLogsRouter = require("./routes/admin.usageLogs");
 const adminAuditLogsRouter = require("./routes/admin.auditLogs");
+const adminDashboardRouter = require("./routes/admin.dashboard");
+const adminSettingsRouter = require("./routes/admin.settings");
 
 const app = express();
 
@@ -49,6 +51,8 @@ app.use("/api/admin/customers", adminCustomersRouter);
 app.use("/api/admin/orders", adminOrdersRouter);
 app.use("/api/admin/usage-logs", adminUsageLogsRouter);
 app.use("/api/admin/audit-logs", adminAuditLogsRouter);
+app.use("/api/admin/dashboard", adminDashboardRouter);
+app.use("/api/admin/settings", adminSettingsRouter);
 app.use("/v1", v1Router);
 
 app.listen(env.PORT, env.HOST, () => {

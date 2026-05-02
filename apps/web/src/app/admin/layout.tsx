@@ -3,11 +3,13 @@ import Link from "next/link";
 import { AdminGate } from "./_components/AdminGate";
 
 const navItems: Array<{ href: string; label: string; badge?: string }> = [
+  { href: "/admin", label: "Dashboard", badge: "V1" },
   { href: "/admin/products", label: "Products", badge: "V1" },
   { href: "/admin/customers", label: "Customers", badge: "V1" },
   { href: "/admin/orders", label: "Orders", badge: "V1" },
   { href: "/admin/usage-logs", label: "Usage Logs" },
   { href: "/admin/audit-logs", label: "Audit Logs" },
+  { href: "/admin/settings", label: "Settings" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
