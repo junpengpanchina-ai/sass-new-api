@@ -12,6 +12,14 @@ const tokensRouter = require("./routes/tokens");
 const checkoutRouter = require("./routes/checkout");
 const healthzRouter = require("./routes/healthz");
 const v1Router = require("./routes/v1");
+const adminPlansRouter = require("./routes/admin.plans");
+const adminUsersRouter = require("./routes/admin.users");
+const adminTokensRouter = require("./routes/admin.tokens");
+const adminProductsRouter = require("./routes/admin.products");
+const adminCustomersRouter = require("./routes/admin.customers");
+const adminOrdersRouter = require("./routes/admin.orders");
+const adminUsageLogsRouter = require("./routes/admin.usageLogs");
+const adminAuditLogsRouter = require("./routes/admin.auditLogs");
 
 const app = express();
 
@@ -33,6 +41,14 @@ app.use("/api/plans", plansRouter);
 app.use("/api/me", meRouter);
 app.use("/api/tokens", tokensRouter);
 app.use("/api/checkout", checkoutRouter);
+app.use("/api/admin/plans", adminPlansRouter);
+app.use("/api/admin/users", adminUsersRouter);
+app.use("/api/admin/tokens", adminTokensRouter);
+app.use("/api/admin/products", adminProductsRouter);
+app.use("/api/admin/customers", adminCustomersRouter);
+app.use("/api/admin/orders", adminOrdersRouter);
+app.use("/api/admin/usage-logs", adminUsageLogsRouter);
+app.use("/api/admin/audit-logs", adminAuditLogsRouter);
 app.use("/v1", v1Router);
 
 app.listen(env.PORT, env.HOST, () => {
