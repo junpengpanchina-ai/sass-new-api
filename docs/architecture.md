@@ -4,6 +4,19 @@
 
 ---
 
+## 生产域名（tokfai）
+
+| 主机名 | 用途 |
+| ------ | ---- |
+| `https://tokfai.com` | 官网（Landing / 控制台等前端） |
+| `https://www.tokfai.com` | 同上（建议 301 归一到主域或反代同一套前端） |
+| `https://api.tokfai.com` | DMIT 后端 API（`/health`、`/api/*`、`/v1/*`、Webhook 等） |
+
+前端环境变量示例：`NEXT_PUBLIC_API_BASE_URL=https://api.tokfai.com`（仅公网基址，无密钥）。  
+DMIT 上 Nginx / 证书为 **`api.tokfai.com`** 签发；Stripe Webhook、上游回调 URL 亦指向该 API 主机。
+
+---
+
 ## 出海版部署与安全边界
 
 Vercel 承载多语言前端页面，包括 Landing、Pricing、登录、控制台和用户交互。前端只允许使用 `NEXT_PUBLIC_*` 环境变量和 Supabase anon key，不允许保存或暴露任何上游密钥、支付密钥或数据库 service role key。
@@ -132,5 +145,8 @@ flowchart LR
 | `docs/architecture.md`（本文） | 部署拓扑、密钥边界、**配置 vs 密钥双层模型**、组件职责 |
 | `docs/supabase-schema-*.sql` | 具体 DDL（若有） |
 | `docs/dmit-api-minimal-supabase.md` | DMIT 接 Supabase 最小步骤；实现 `apps/dmit-api/` |
+| `docs/dmit-api-batch-two-me-tokens-checkout.md` | `/api/me`、`/api/tokens`、`/api/checkout`（Bearer Supabase JWT） |
+| `docs/dmit-api-batch-three-gateway.md` | `/v1/models`、`/v1/chat/completions`（Bearer 平台 token）+ `usage_logs` |
+| `docs/tokfai-platform-handbook.md` | **全量合并手册**（架构 + 规格 + 权限 + RLS + SQL + DMIT 三批；单文件导出） |
 
 若 Monorepo 中仍出现历史草案（如 FastAPI gateway），以**实际落在 DMIT 的 Node/Express 网关**为准，文档-only 名称差异不影响边界原则。

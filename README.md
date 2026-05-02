@@ -29,8 +29,16 @@
 └── .env.example
 ```
 
+## 生产域名（tokfai）
+
+- **官网**：`https://tokfai.com`、`https://www.tokfai.com`（前端）
+- **API**：`https://api.tokfai.com`（DMIT / `apps/dmit-api`）
+
+细节与 TLS/Webhook 指向见 [`docs/architecture.md`](docs/architecture.md)。
+
 ## 文档
 
+- **全量合并手册（单文件导出）**：[`docs/tokfai-platform-handbook.md`](docs/tokfai-platform-handbook.md)（架构、规格、权限、RLS、SQL、DMIT 三批接口；**日常以分文件为准**）
 - 开发顺序与模块清单：见 `docs/v1-roadmap.md`
 - V1 开发任务总表（Sprint）：见 `docs/v1-taskboard.md`
 - Sprint 1 详细任务单：见 `docs/sprint-1-detailed.md`
@@ -41,6 +49,8 @@
 - V1 角色权限矩阵（字段 / 页面 / 接口）：见 `docs/role-permissions-matrix-v1.md`
 - Supabase RLS 初稿（按矩阵落地）：见 `docs/supabase-rls-v1.md`
 - DMIT 接 Supabase 最小清单与 Nginx：见 `docs/dmit-api-minimal-supabase.md`（代码 `apps/dmit-api/`）
+- DMIT 第二批：`/api/me`、`/api/tokens`、`/api/checkout`：见 `docs/dmit-api-batch-two-me-tokens-checkout.md`
+- DMIT 第三批：Gateway `/v1/models`、`/v1/chat/completions`、`usage_logs`：见 `docs/dmit-api-batch-three-gateway.md`
 - 用户分销管理：见 `docs/affiliate-distribution.md`
 - 管理员账号：见 `docs/admin-accounts.md`
 - 分析工具设置（GA4 / Umami）：见 `docs/analytics.md`

@@ -15,6 +15,9 @@ const env = {
   SUPABASE_URL: required("SUPABASE_URL"),
   SUPABASE_SERVICE_ROLE_KEY: required("SUPABASE_SERVICE_ROLE_KEY"),
   TOKEN_PEPPER: required("TOKEN_PEPPER"),
+  UPSTREAM_BASE_URL: required("UPSTREAM_BASE_URL"),
+  UPSTREAM_API_KEY: required("UPSTREAM_API_KEY"),
+  UPSTREAM_NAME: process.env.UPSTREAM_NAME || "grsai-primary",
 };
 
 module.exports = { env };
