@@ -16,6 +16,16 @@ function isPublicPath(pathname: string) {
 export async function middleware(request: NextRequest) {
   const url = new URL(request.url);
 
+  if (url.pathname === "/debug/connectivity") {
+    const connectivityPageEnabled =
+      process.env.NEXT_PUBLIC_ENABLE_CONNECTIVITY_PAGE === "true" ||
+      process.env.NODE_ENV === "development";
+    if (!connectivityPageEnabled) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+    return NextResponse.next();
+  }
+
   // Skip for public routes and static assets.
   if (
     isPublicPath(url.pathname) ||
