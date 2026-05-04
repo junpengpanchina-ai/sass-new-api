@@ -4,9 +4,12 @@ import { AdminGate } from "./_components/AdminGate";
 
 const navItems: Array<{ href: string; label: string; badge?: string }> = [
   { href: "/admin", label: "Dashboard", badge: "V1" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/tokens", label: "Tokens" },
   { href: "/admin/products", label: "Products", badge: "V1" },
   { href: "/admin/customers", label: "Customers", badge: "V1" },
   { href: "/admin/orders", label: "Orders", badge: "V1" },
+  { href: "/admin/credit-ledger", label: "Credit Ledger" },
   { href: "/admin/usage-logs", label: "Usage Logs" },
   { href: "/admin/audit-logs", label: "Audit Logs" },
   { href: "/admin/settings", label: "Settings" },

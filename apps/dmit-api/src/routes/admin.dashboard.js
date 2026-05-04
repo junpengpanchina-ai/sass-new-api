@@ -26,6 +26,7 @@ router.get("/", authMiddleware, requireAdmin, async (req, res) => {
       ordersPendingDelivery,
       usage24h,
       audit24h,
+      creditLedger24h,
     ] = await Promise.all([
       countExact("products"),
       countExact("products", (q) => q.eq("active", true)),
@@ -36,13 +37,14 @@ router.get("/", authMiddleware, requireAdmin, async (req, res) => {
       countExact("ops_orders", (q) => q.eq("payment_status", "paid").eq("delivery_status", "pending")),
       countExact("usage_logs", (q) => q.gte("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString())),
       countExact("admin_audit_logs", (q) => q.gte("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString())),
+      countExact("credit_ledger", (q) => q.gte("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString())),
     ]);
 
     return ok(res, {
       products: { total: productsTotal, active: productsActive },
       customers: { total: customersTotal, new: customersNew },
       orders: { total: ordersTotal, paid: ordersPaid, pending_delivery: ordersPendingDelivery },
-      activity_24h: { usage_logs: usage24h, audit_logs: audit24h },
+      activity_24h: { usage_logs: usage24h, audit_logs: audit24h, credit_ledger: creditLedger24h },
       generated_at: new Date().toISOString(),
     });
   } catch (e) {

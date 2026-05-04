@@ -39,8 +39,13 @@ export async function adminFetch<T>(path: string, options: AdminFetchOptions = {
 
   const json = (await res.json().catch(() => null)) as any;
   if (!res.ok) {
-    const msg = json?.message || json?.error || `Request failed: ${res.status}`;
-    throw new Error(msg);
+    const errObj = json?.error;
+    const msg =
+      (typeof errObj === "object" && errObj?.message) ||
+      (typeof errObj === "string" && errObj) ||
+      json?.message ||
+      `Request failed: ${res.status}`;
+    throw new Error(String(msg));
   }
   return json as T;
 }

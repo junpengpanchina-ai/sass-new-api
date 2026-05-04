@@ -31,7 +31,7 @@ router.get("/", authMiddleware, requireAdmin, async (req, res) => {
     let q = supabaseAdmin
       .from("usage_logs")
       .select(
-        "id, created_at, user_id, token_id, model, upstream_name, status, http_status, latency_ms, error_code, error_message, request_id",
+        "id, created_at, user_id, token_id, model, upstream_name, status, http_status, latency_ms, error_code, error_message, request_id, credits_charged, credit_ledger_id",
         { count: "exact" }
       )
       .order("created_at", { ascending: false });

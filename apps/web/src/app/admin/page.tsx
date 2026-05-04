@@ -11,7 +11,7 @@ type Dashboard = {
     products: { total: number; active: number };
     customers: { total: number; new: number };
     orders: { total: number; paid: number; pending_delivery: number };
-    activity_24h: { usage_logs: number; audit_logs: number };
+    activity_24h: { usage_logs: number; audit_logs: number; credit_ledger: number };
     generated_at: string;
   };
 };
@@ -64,13 +64,18 @@ export default function AdminHomePage() {
           <Card title="Pending Delivery" subtitle="待发货" value={data ? `${data.orders.pending_delivery}` : "…"} hint="paid but not delivered" href="/admin/orders" />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
           <div className="card" style={{ padding: 14, background: "rgba(255,255,255,0.03)" }}>
             <div style={{ fontWeight: 800, marginBottom: 8 }}>快捷入口</div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Link className="btn btnPrimary" href="/admin/products">去上架产品</Link>
-              <Link className="btn" href="/admin/customers">去看客户池</Link>
-              <Link className="btn" href="/admin/orders">去建单发货</Link>
+              <Link className="btn btnPrimary" href="/admin/users">用户与余额</Link>
+              <Link className="btn" href="/admin/credit-ledger">额度流水 / 加额</Link>
+              <Link className="btn" href="/admin/tokens">API Tokens</Link>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+              <Link className="btn" href="/admin/products">上架产品</Link>
+              <Link className="btn" href="/admin/customers">客户池</Link>
+              <Link className="btn" href="/admin/orders">建单发货</Link>
             </div>
           </div>
 
@@ -78,13 +83,16 @@ export default function AdminHomePage() {
             <div style={{ fontWeight: 800, marginBottom: 8 }}>最近 24h 活动</div>
             <div style={{ display: "grid", gap: 8 }}>
               <div className="muted" style={{ fontSize: 13 }}>Usage logs：{data ? data.activity_24h.usage_logs : "…"}</div>
+              <div className="muted" style={{ fontSize: 13 }}>Credit ledger 行数：{data ? data.activity_24h.credit_ledger : "…"}</div>
               <div className="muted" style={{ fontSize: 13 }}>Audit logs：{data ? data.activity_24h.audit_logs : "…"}</div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
-                <Link className="btn" href="/admin/usage-logs" style={{ padding: "8px 10px" }}>查看 Usage Logs</Link>
-                <Link className="btn" href="/admin/audit-logs" style={{ padding: "8px 10px" }}>查看 Audit Logs</Link>
+                <Link className="btn" href="/admin/usage-logs" style={{ padding: "8px 10px" }}>Usage Logs</Link>
+                <Link className="btn" href="/admin/audit-logs" style={{ padding: "8px 10px" }}>Audit Logs</Link>
               </div>
             </div>
           </div>
+
+          <Card title="Credit" subtitle="账本" value="Ledger" hint="流水 / 手工加额" href="/admin/credit-ledger" />
         </div>
       </section>
     </main>

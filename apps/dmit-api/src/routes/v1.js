@@ -4,6 +4,7 @@ const { apiTokenAuth } = require("../middleware/apiTokenAuth");
 const { requireModelAccess } = require("../middleware/requireModelAccess");
 const { forwardChatCompletion } = require("../lib/upstream");
 const { writeUsageLog } = require("../lib/usageLogs");
+const { chatCostCredits, checkCredits, chargeCredits } = require("../lib/credits");
 
 const DEFAULT_MODEL_IDS = ["gpt-4o-mini", "nano-banana-pro"];
 
@@ -50,6 +51,36 @@ router.post("/chat/completions", apiTokenAuth, requireModelAccess, async (req, r
     const payload = req.body;
     const model = req.requestedModel;
     const locale = req.headers["accept-language"] || null;
+    const cost = chatCostCredits();
+
+    const creditCheck = await checkCredits(req.profile.id, cost);
+    if (!creditCheck.ok) {
+      await writeUsageLog({
+        tokenId: req.apiToken.id,
+        userId: req.profile.id,
+        model,
+        status: "denied",
+        httpStatus: 402,
+        latencyMs: Date.now() - startedAt,
+        requestId,
+        errorCode: "insufficient_credits",
+        errorMessage: `Required ${cost} credits, balance ${creditCheck.balance}`,
+        locale,
+        creditsCharged: 0,
+      });
+
+      return res.status(402).json({
+        error: {
+          message: "Insufficient credits",
+          type: "insufficient_credits",
+          code: "insufficient_credits",
+          message_en: "Insufficient credits to run this request.",
+          message_zh: "额度不足，无法完成本次调用。",
+          request_id: requestId,
+          details: { required: cost, balance: creditCheck.balance },
+        },
+      });
+    }
 
     const upstreamResult = await forwardChatCompletion(payload);
     const latencyMs = Date.now() - startedAt;
@@ -79,7 +110,7 @@ router.post("/chat/completions", apiTokenAuth, requireModelAccess, async (req, r
       });
     }
 
-    await writeUsageLog({
+    const { id: usageLogId, error: usageInsertError } = await writeUsageLog({
       tokenId: req.apiToken.id,
       userId: req.profile.id,
       model,
@@ -89,6 +120,22 @@ router.post("/chat/completions", apiTokenAuth, requireModelAccess, async (req, r
       requestId,
       locale,
     });
+
+    if (usageInsertError || !usageLogId) {
+      console.error("POST /v1/chat/completions: usage log insert failed after upstream ok", usageInsertError);
+    } else {
+      try {
+        await chargeCredits({
+          userId: req.profile.id,
+          tokenId: req.apiToken.id,
+          usageLogId,
+          amount: cost,
+          requestId,
+        });
+      } catch (chargeErr) {
+        console.error("POST /v1/chat/completions: chargeCredits failed after upstream ok", chargeErr);
+      }
+    }
 
     return res.status(200).json(upstreamResult.data);
   } catch (error) {

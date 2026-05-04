@@ -7,7 +7,7 @@ const { authMiddleware, requireAdmin } = require("../middleware/requireAdmin");
 
 const router = express.Router();
 
-const ALLOWED_STATUS = new Set(["pending", "active", "suspended"]);
+const ALLOWED_STATUS = new Set(["visitor", "pending", "paid_pending", "active", "suspended"]);
 const ALLOWED_ROLE = new Set(["user", "admin", "sales", "affiliate"]);
 
 function toInt(value, fallback) {
@@ -29,7 +29,9 @@ router.get("/", authMiddleware, requireAdmin, async (req, res) => {
 
     let q = supabaseAdmin
       .from("profiles")
-      .select("id, email, role, plan, status, created_at", { count: "exact" })
+      .select("id, email, role, plan, status, created_at, credits_balance, credits_total_recharged, credits_total_used", {
+        count: "exact",
+      })
       .order("created_at", { ascending: false });
 
     if (email) q = q.ilike("email", `%${email}%`);
@@ -74,6 +76,9 @@ router.get("/", authMiddleware, requireAdmin, async (req, res) => {
       role: r.role,
       plan: r.plan,
       status: r.status,
+      credits_balance: r.credits_balance ?? null,
+      credits_total_recharged: r.credits_total_recharged ?? null,
+      credits_total_used: r.credits_total_used ?? null,
       token_count: tokenCountByUserId.get(r.id) || 0,
       last_used_at: lastUsedByUserId.get(r.id) || null,
       created_at: r.created_at,
@@ -99,7 +104,7 @@ router.patch("/:id", authMiddleware, requireAdmin, async (req, res) => {
 
     const { data: before, error: beforeErr } = await supabaseAdmin
       .from("profiles")
-      .select("id, email, role, plan, status, created_at")
+      .select("id, email, role, plan, status, created_at, credits_balance, credits_total_recharged, credits_total_used")
       .eq("id", id)
       .single();
     if (beforeErr || !before) return fail(res, 404, "not_found", "User not found");
@@ -126,7 +131,7 @@ router.patch("/:id", authMiddleware, requireAdmin, async (req, res) => {
       .from("profiles")
       .update(patch)
       .eq("id", id)
-      .select("id, email, role, plan, status, created_at")
+      .select("id, email, role, plan, status, created_at, credits_balance, credits_total_recharged, credits_total_used")
       .single();
     if (error) throw error;
 

@@ -17,6 +17,8 @@ type UsageLog = {
   error_code: string | null;
   error_message: string | null;
   request_id: string | null;
+  credits_charged: number | null;
+  credit_ledger_id: number | null;
 };
 
 type ListResponse = {
@@ -112,7 +114,7 @@ export default function AdminUsageLogsPage() {
           </div>
         ) : null}
 
-        <div style={{ overflow: "hidden", borderRadius: 14, border: "1px solid var(--border)" }}>
+        <div style={{ overflow: "auto", borderRadius: 14, border: "1px solid var(--border)" }}>
           <table className="table">
             <thead>
               <tr>
@@ -122,8 +124,10 @@ export default function AdminUsageLogsPage() {
                 <th style={{ width: 120 }}>Latency</th>
                 <th style={{ width: 200 }}>Model</th>
                 <th style={{ width: 160 }}>Upstream</th>
-                <th style={{ width: 260 }}>Token</th>
-                <th style={{ width: 260 }}>User</th>
+                <th style={{ width: 80 }}>Credits</th>
+                <th style={{ width: 100 }}>Ledger</th>
+                <th style={{ width: 220 }}>Token</th>
+                <th style={{ width: 220 }}>User</th>
                 <th style={{ width: 180 }}>Error</th>
               </tr>
             </thead>
@@ -138,6 +142,8 @@ export default function AdminUsageLogsPage() {
                   <td>{l.latency_ms ?? "-"}</td>
                   <td style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>{l.model}</td>
                   <td>{l.upstream_name}</td>
+                  <td>{l.credits_charged ?? "—"}</td>
+                  <td className="muted" style={{ fontSize: 12 }}>{l.credit_ledger_id ?? "—"}</td>
                   <td className="muted" style={{ fontSize: 12, fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" }}>
                     {l.token_id || "-"}
                   </td>
@@ -155,14 +161,14 @@ export default function AdminUsageLogsPage() {
               ))}
               {!items.length && !loading ? (
                 <tr>
-                  <td colSpan={9} className="muted" style={{ padding: 14 }}>
+                  <td colSpan={11} className="muted" style={{ padding: 14 }}>
                     暂无日志（或筛选无结果）。
                   </td>
                 </tr>
               ) : null}
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="muted" style={{ padding: 14 }}>
+                  <td colSpan={11} className="muted" style={{ padding: 14 }}>
                     加载中…
                   </td>
                 </tr>

@@ -22,6 +22,7 @@ const adminUsageLogsRouter = require("./routes/admin.usageLogs");
 const adminAuditLogsRouter = require("./routes/admin.auditLogs");
 const adminDashboardRouter = require("./routes/admin.dashboard");
 const adminSettingsRouter = require("./routes/admin.settings");
+const adminCreditLedgerRouter = require("./routes/admin.creditLedger");
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use("/api/admin/usage-logs", adminUsageLogsRouter);
 app.use("/api/admin/audit-logs", adminAuditLogsRouter);
 app.use("/api/admin/dashboard", adminDashboardRouter);
 app.use("/api/admin/settings", adminSettingsRouter);
+app.use("/api/admin/credit-ledger", adminCreditLedgerRouter);
 app.use("/v1", v1Router);
 
 app.listen(env.PORT, env.HOST, () => {
