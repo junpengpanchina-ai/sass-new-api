@@ -6,12 +6,10 @@ import type { Provider } from "@supabase/supabase-js";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type OAuthProvider = "github" | "discord" | "linuxdo";
+type OAuthProvider = "google";
 
 const OAUTH_PROVIDERS: Array<{ id: OAuthProvider; label: string }> = [
-  { id: "github", label: "GitHub" },
-  { id: "discord", label: "Discord" },
-  { id: "linuxdo", label: "LinuxDO" }
+  { id: "google", label: "Google" }
 ];
 
 export default function LoginPage() {
@@ -75,7 +73,7 @@ export default function LoginPage() {
           <div className="pill">登录</div>
           <h1 style={{ margin: "10px 0 6px", fontSize: 28, letterSpacing: "-0.02em" }}>欢迎回来</h1>
           <p className="muted" style={{ marginTop: 0 }}>
-            使用账号密码登录，或使用第三方 OAuth 一键登录。
+            使用账号密码登录，或使用 Google 一键登录。
           </p>
 
           <form onSubmit={onLogin} style={{ display: "grid", gap: 12, marginTop: 14 }}>
@@ -132,7 +130,7 @@ export default function LoginPage() {
         <aside className="card" style={{ padding: 16, background: "rgba(255,255,255,0.04)" }}>
           <div style={{ fontWeight: 700, marginBottom: 10 }}>第三方登录</div>
           <div className="muted" style={{ fontSize: 13 }}>
-            点击对应平台图标，跳转授权后自动登录。
+            点击按钮跳转授权后自动登录。
           </div>
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {OAUTH_PROVIDERS.map((p) => (
@@ -143,7 +141,7 @@ export default function LoginPage() {
             ))}
           </div>
           <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-            提示：需要在 Supabase Auth 里启用对应 Provider。
+            提示：需要在 Supabase Auth 里启用 Google Provider，并配置回调地址。
           </div>
         </aside>
       </div>

@@ -1,8 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isAuthGuardDisabled } from "@/lib/authGuard";
-
 function isPublicPath(pathname: string) {
   return (
     pathname === "/" ||
@@ -84,10 +82,6 @@ export async function middleware(request: NextRequest) {
     if (profile?.role !== "admin") {
       return new NextResponse("Not Found", { status: 404 });
     }
-  }
-
-  if (isAuthGuardDisabled()) {
-    return response;
   }
 
   if (!user && (url.pathname.startsWith("/dashboard") || url.pathname.startsWith("/console"))) {

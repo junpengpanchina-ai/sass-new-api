@@ -78,9 +78,9 @@ export default function RegisterPage() {
     <main className="container" style={{ maxWidth: 760 }}>
       <div className="card" style={{ padding: 22 }}>
         <div className="pill">注册</div>
-        <h1 style={{ margin: "10px 0 6px", fontSize: 28, letterSpacing: "-0.02em" }}>创建管理员账号</h1>
+        <h1 style={{ margin: "10px 0 6px", fontSize: 28, letterSpacing: "-0.02em" }}>创建账号</h1>
         <p className="muted" style={{ marginTop: 0 }}>
-          支持账号密码注册。首次使用请先完成注册。
+          支持邮箱注册与账号密码登录。管理员账号需注册后在 Supabase 中手动设置为 admin。
         </p>
 
         <form onSubmit={onRegister} style={{ display: "grid", gap: 12, marginTop: 14 }}>

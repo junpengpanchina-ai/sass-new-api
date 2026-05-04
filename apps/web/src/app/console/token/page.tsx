@@ -4,62 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 
 import { OPENAI_BASE_URL } from "@/lib/openaiApiBase";
 
-type TokenRecord = {
+import { consoleFetch } from "../_lib/consoleFetch";
+
+type ApiToken = {
   id: string;
   name: string;
-  createdAt: string;
-  status: "active" | "revoked";
-  expiresAt: string | null; // ISO
-  quotaRemaining: number | null; // null => unlimited (or unknown)
-  quotaUnlimited: boolean;
-  models: string[]; // empty => no limit
-  ipWhitelist: string[]; // empty => no limit
-  group: string;
+  status: "active" | "disabled" | "deleted";
+  allowed_models: unknown | null;
+  created_at?: string;
+  last_used_at?: string | null;
 };
 
 type CreateTokenInput = {
   name: string;
-  expiresAt: string; // empty => never
-  quotaRemaining: string; // empty => unlimited (unless quotaUnlimited=false? keep simple)
-  quotaUnlimited: boolean;
-  models: string; // comma separated
-  ipWhitelist: string; // comma separated
-  group: string;
+  allowedModels: string; // comma separated
 };
-
-const STORAGE_KEY = "token-saas.console.tokens.v1";
-
-function loadTokens(): TokenRecord[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const data = JSON.parse(raw) as TokenRecord[];
-    if (!Array.isArray(data)) return [];
-    return data;
-  } catch {
-    return [];
-  }
-}
-
-function saveTokens(tokens: TokenRecord[]) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
-}
-
-function createTokenKey() {
-  // Display-only token key, persisted nowhere. Real implementation should store hash server-side.
-  const bytes = new Uint8Array(24);
-  crypto.getRandomValues(bytes);
-  const body = btoa(String.fromCharCode(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
-  return `ts_${body}`;
-}
-
-function nowIso() {
-  return new Date().toISOString();
-}
 
 function parseCsv(s: string) {
   return s
@@ -69,64 +28,96 @@ function parseCsv(s: string) {
 }
 
 export default function TokenManagementPage() {
-  const [tokens, setTokens] = useState<TokenRecord[]>([]);
+  const [tokens, setTokens] = useState<ApiToken[] | null>(null);
   const [query, setQuery] = useState("");
 
   const [showCreate, setShowCreate] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
 
-  const [editing, setEditing] = useState<TokenRecord | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [importing, setImporting] = useState<TokenRecord | null>(null);
+  const [importing, setImporting] = useState<ApiToken | null>(null);
 
   useEffect(() => {
-    setTokens(loadTokens());
+    let cancelled = false;
+    (async () => {
+      try {
+        const json = await consoleFetch<{ ok: true; data: ApiToken[] }>("/api/tokens");
+        if (!cancelled) setTokens(json.data);
+      } catch (e) {
+        if (!cancelled) {
+          setTokens([]);
+          setMsg(e instanceof Error ? e.message : "加载 API Key 失败");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    saveTokens(tokens);
-  }, [tokens]);
-
   const filtered = useMemo(() => {
+    if (!tokens) return [];
     const q = query.trim().toLowerCase();
     if (!q) return tokens;
     return tokens.filter((t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q));
   }, [tokens, query]);
 
-  function onCreate(input: CreateTokenInput) {
-    const key = createTokenKey();
-    const id = `tok_${crypto.randomUUID()}`;
-    const expiresAt = input.expiresAt.trim() ? new Date(input.expiresAt).toISOString() : null;
-    const quotaUnlimited = Boolean(input.quotaUnlimited);
-    const quotaRemaining = quotaUnlimited ? null : input.quotaRemaining.trim() ? Number(input.quotaRemaining) : null;
-
-    const token: TokenRecord = {
-      id,
-      name: input.name.trim(),
-      createdAt: nowIso(),
-      status: "active",
-      expiresAt,
-      quotaRemaining: Number.isFinite(quotaRemaining as number) ? (quotaRemaining as number) : null,
-      quotaUnlimited,
-      models: parseCsv(input.models),
-      ipWhitelist: parseCsv(input.ipWhitelist),
-      group: input.group.trim()
-    };
-
-    setTokens((prev) => [token, ...prev]);
-    setShowCreate(false);
-    setCreatedKey(key);
+  async function refreshTokens() {
+    const json = await consoleFetch<{ ok: true; data: ApiToken[] }>("/api/tokens");
+    setTokens(json.data);
   }
 
-  function onUpdate(next: TokenRecord) {
-    setTokens((prev) => prev.map((t) => (t.id === next.id ? next : t)));
-    setEditing(null);
+  async function onCreate(input: CreateTokenInput) {
+    setMsg(null);
+    setLoading(true);
+    try {
+      const allowed_models = parseCsv(input.allowedModels);
+      const payload = { name: input.name.trim(), allowed_models: allowed_models.length ? allowed_models : null };
+      const json = await consoleFetch<{ ok: true; data: ApiToken & { plain_token: string } }>("/api/tokens", {
+        method: "POST",
+        body: payload,
+      });
+      setCreatedKey(json.data.plain_token);
+      await refreshTokens();
+      setShowCreate(false);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "创建失败");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function onDelete(id: string) {
-    setTokens((prev) => prev.filter((t) => t.id !== id));
-    setDeletingId(null);
+  async function onToggleStatus(t: ApiToken) {
+    setMsg(null);
+    setLoading(true);
+    try {
+      const next = t.status === "active" ? "disabled" : "active";
+      await consoleFetch<{ ok: true; data: ApiToken }>(`/api/tokens/${encodeURIComponent(t.id)}`, {
+        method: "PATCH",
+        body: { status: next },
+      });
+      await refreshTokens();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "更新失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onDelete(id: string) {
+    setMsg(null);
+    setLoading(true);
+    try {
+      await consoleFetch<{ ok: true; data: ApiToken }>(`/api/tokens/${encodeURIComponent(id)}`, { method: "DELETE" });
+      await refreshTokens();
+      setDeletingId(null);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -141,11 +132,17 @@ export default function TokenManagementPage() {
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索令牌…" style={inputStyle} />
-          <button className="btn btnPrimary" type="button" onClick={() => setShowCreate(true)}>
+          <button className="btn btnPrimary" type="button" onClick={() => setShowCreate(true)} disabled={loading}>
             创建令牌
           </button>
         </div>
       </div>
+
+      {msg ? (
+        <div className="pill bad" style={{ justifySelf: "start", marginTop: 12 }}>
+          {msg}
+        </div>
+      ) : null}
 
       {createdKey ? (
         <div className="card" style={{ marginTop: 14, padding: 14, background: "rgba(255,92,119,0.08)", borderColor: "rgba(255,92,119,0.35)" }}>
@@ -177,9 +174,7 @@ export default function TokenManagementPage() {
             <tr>
               <th style={{ width: 220 }}>名称</th>
               <th style={{ width: 120 }}>状态</th>
-              <th style={{ width: 160 }}>剩余配额</th>
-              <th style={{ width: 200 }}>过期时间</th>
-              <th>限制</th>
+              <th>模型限制</th>
               <th style={{ width: 180 }}>操作</th>
             </tr>
           </thead>
@@ -195,31 +190,34 @@ export default function TokenManagementPage() {
                 <td>
                   <span className={`pill ${t.status === "active" ? "good" : "bad"}`}>{t.status}</span>
                 </td>
-                <td>{t.quotaUnlimited ? <span className="pill good">∞</span> : t.quotaRemaining ?? <span className="muted">—</span>}</td>
                 <td className="muted" style={{ fontSize: 13 }}>
-                  {t.expiresAt ? new Date(t.expiresAt).toLocaleString() : "永不过期"}
-                </td>
-                <td className="muted" style={{ fontSize: 13 }}>
-                  {formatLimits(t)}
+                  {Array.isArray(t.allowed_models) && t.allowed_models.length ? String(t.allowed_models.join(", ")) : "不限制"}
                 </td>
                 <td>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button className="btn" type="button" onClick={() => setImporting(t)} style={{ padding: "6px 10px" }}>
+                    <button className="btn" type="button" onClick={() => setImporting(t)} style={{ padding: "6px 10px" }} disabled={loading}>
                       导入/配置
                     </button>
-                    <button className="btn" type="button" onClick={() => setEditing(t)} style={{ padding: "6px 10px" }}>
-                      编辑
+                    <button className="btn" type="button" onClick={() => onToggleStatus(t)} style={{ padding: "6px 10px" }} disabled={loading}>
+                      {t.status === "active" ? "禁用" : "启用"}
                     </button>
-                    <button className="btn" type="button" onClick={() => setDeletingId(t.id)} style={{ padding: "6px 10px" }}>
+                    <button className="btn" type="button" onClick={() => setDeletingId(t.id)} style={{ padding: "6px 10px" }} disabled={loading}>
                       删除
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 ? (
+            {tokens === null ? (
               <tr>
-                <td colSpan={6} className="muted" style={{ padding: 14 }}>
+                <td colSpan={4} className="muted" style={{ padding: 14 }}>
+                  加载中…
+                </td>
+              </tr>
+            ) : null}
+            {tokens !== null && filtered.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="muted" style={{ padding: 14 }}>
                   暂无令牌。点击右上角「创建令牌」开始。
                 </td>
               </tr>
@@ -229,13 +227,6 @@ export default function TokenManagementPage() {
       </div>
 
       {showCreate ? <TokenModal title="创建令牌" onClose={() => setShowCreate(false)} onSubmit={onCreate} /> : null}
-      {editing ? (
-        <EditModal
-          token={editing}
-          onClose={() => setEditing(null)}
-          onSubmit={(next) => onUpdate(next)}
-        />
-      ) : null}
       {importing ? <ImportModal token={importing} onClose={() => setImporting(null)} /> : null}
       {deletingId ? (
         <ConfirmModal
@@ -250,23 +241,10 @@ export default function TokenManagementPage() {
   );
 }
 
-function formatLimits(t: TokenRecord) {
-  const parts: string[] = [];
-  if (t.models.length) parts.push(`模型: ${t.models.slice(0, 3).join(", ")}${t.models.length > 3 ? "…" : ""}`);
-  if (t.ipWhitelist.length) parts.push(`IP: ${t.ipWhitelist.slice(0, 3).join(", ")}${t.ipWhitelist.length > 3 ? "…" : ""}`);
-  if (t.group) parts.push(`分组: ${t.group}`);
-  return parts.length ? parts.join(" · ") : "不限制";
-}
-
 function TokenModal(props: { title: string; onClose: () => void; onSubmit: (input: CreateTokenInput) => void }) {
   const [form, setForm] = useState<CreateTokenInput>({
     name: "",
-    expiresAt: "",
-    quotaRemaining: "",
-    quotaUnlimited: true,
-    models: "",
-    ipWhitelist: "",
-    group: ""
+    allowedModels: "",
   });
 
   const canSubmit = form.name.trim().length > 0;
@@ -278,52 +256,16 @@ function TokenModal(props: { title: string; onClose: () => void; onSubmit: (inpu
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={inputStyle} placeholder="如：生产环境 / 测试用" />
         </Field>
 
-        <Field label="过期时间（可选）">
+        <Field label="模型限制（可选）">
           <input
-            value={form.expiresAt}
-            onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+            value={form.allowedModels}
+            onChange={(e) => setForm({ ...form, allowedModels: e.target.value })}
             style={inputStyle}
-            placeholder="YYYY-MM-DDTHH:mm"
+            placeholder="用逗号分隔，如 gpt-4.1, gpt-4o-mini"
           />
           <div className="muted" style={{ fontSize: 12 }}>
-            留空表示永不过期。
+            留空表示不限制。更复杂的权限（IP 白名单、配额、分组）后续落到 token 元数据与网关策略。
           </div>
-        </Field>
-
-        <Field label="剩余配额 / 无限配额">
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <label className="btn" style={{ justifyContent: "flex-start", gap: 10 }}>
-              <input
-                type="checkbox"
-                checked={form.quotaUnlimited}
-                onChange={(e) => setForm({ ...form, quotaUnlimited: e.target.checked })}
-              />
-              无限配额
-            </label>
-            <input
-              value={form.quotaRemaining}
-              onChange={(e) => setForm({ ...form, quotaRemaining: e.target.value })}
-              style={{ ...inputStyle, maxWidth: 220, opacity: form.quotaUnlimited ? 0.6 : 1 }}
-              placeholder="如：100000"
-              disabled={form.quotaUnlimited}
-              inputMode="numeric"
-            />
-          </div>
-          <div className="muted" style={{ fontSize: 12 }}>
-            注意：无限配额仍受账户总配额约束（后续接入）。
-          </div>
-        </Field>
-
-        <Field label="模型限制（可选）">
-          <input value={form.models} onChange={(e) => setForm({ ...form, models: e.target.value })} style={inputStyle} placeholder="用逗号分隔，如 gpt-4.1, gpt-4o-mini" />
-        </Field>
-
-        <Field label="IP 白名单（可选）">
-          <input value={form.ipWhitelist} onChange={(e) => setForm({ ...form, ipWhitelist: e.target.value })} style={inputStyle} placeholder="用逗号分隔，如 1.2.3.4, 5.6.7.8" />
-        </Field>
-
-        <Field label="分组（可选）">
-          <input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} style={inputStyle} placeholder="如：prod / staging" />
         </Field>
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 6 }}>
@@ -339,88 +281,7 @@ function TokenModal(props: { title: string; onClose: () => void; onSubmit: (inpu
   );
 }
 
-function EditModal(props: { token: TokenRecord; onClose: () => void; onSubmit: (token: TokenRecord) => void }) {
-  const [t, setT] = useState<TokenRecord>(props.token);
-
-  return (
-    <ModalFrame title="编辑令牌" onClose={props.onClose}>
-      <div style={{ display: "grid", gap: 12 }}>
-        <div className="muted" style={{ fontSize: 12 }}>
-          注意：编辑不包含令牌 Key 本身（Key 仅创建时完整显示一次）。
-        </div>
-
-        <Field label="名称">
-          <input value={t.name} onChange={(e) => setT({ ...t, name: e.target.value })} style={inputStyle} />
-        </Field>
-
-        <Field label="状态">
-          <select
-            className="btn"
-            value={t.status}
-            onChange={(e) => setT({ ...t, status: e.target.value as TokenRecord["status"] })}
-            style={{ justifyContent: "flex-start" }}
-          >
-            <option value="active">active</option>
-            <option value="revoked">revoked</option>
-          </select>
-        </Field>
-
-        <Field label="过期时间">
-          <input
-            value={t.expiresAt ? new Date(t.expiresAt).toISOString().slice(0, 16) : ""}
-            onChange={(e) => setT({ ...t, expiresAt: e.target.value ? new Date(e.target.value).toISOString() : null })}
-            style={inputStyle}
-            placeholder="YYYY-MM-DDTHH:mm"
-          />
-        </Field>
-
-        <Field label="剩余配额 / 无限配额">
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <label className="btn" style={{ justifyContent: "flex-start", gap: 10 }}>
-              <input
-                type="checkbox"
-                checked={t.quotaUnlimited}
-                onChange={(e) => setT({ ...t, quotaUnlimited: e.target.checked, quotaRemaining: e.target.checked ? null : t.quotaRemaining })}
-              />
-              无限配额
-            </label>
-            <input
-              value={t.quotaRemaining ?? ""}
-              onChange={(e) => setT({ ...t, quotaRemaining: e.target.value ? Number(e.target.value) : null })}
-              style={{ ...inputStyle, maxWidth: 220, opacity: t.quotaUnlimited ? 0.6 : 1 }}
-              placeholder="如：100000"
-              disabled={t.quotaUnlimited}
-              inputMode="numeric"
-            />
-          </div>
-        </Field>
-
-        <Field label="模型限制">
-          <input value={t.models.join(", ")} onChange={(e) => setT({ ...t, models: parseCsv(e.target.value) })} style={inputStyle} placeholder="逗号分隔" />
-        </Field>
-
-        <Field label="IP 白名单">
-          <input value={t.ipWhitelist.join(", ")} onChange={(e) => setT({ ...t, ipWhitelist: parseCsv(e.target.value) })} style={inputStyle} placeholder="逗号分隔" />
-        </Field>
-
-        <Field label="分组">
-          <input value={t.group} onChange={(e) => setT({ ...t, group: e.target.value })} style={inputStyle} />
-        </Field>
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 6 }}>
-          <button className="btn" type="button" onClick={props.onClose}>
-            取消
-          </button>
-          <button className="btn btnPrimary" type="button" onClick={() => props.onSubmit(t)} disabled={!t.name.trim()}>
-            保存
-          </button>
-        </div>
-      </div>
-    </ModalFrame>
-  );
-}
-
-function ImportModal(props: { token: TokenRecord; onClose: () => void }) {
+function ImportModal(props: { token: ApiToken; onClose: () => void }) {
   const [baseUrl, setBaseUrl] = useState(OPENAI_BASE_URL);
   const [apiKey, setApiKey] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
