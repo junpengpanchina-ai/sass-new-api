@@ -98,7 +98,7 @@ export const MODEL_CATALOG: ModelCatalogEntry[] = [
   }
 ];
 
-export type ShelfAvailability = "available" | "pending" | "maintenance" | "unknown_info";
+export type ShelfAvailability = "available" | "pending" | "maintenance" | "connected_unknown";
 
 export type ModelShelfItem =
   | ({
@@ -118,7 +118,7 @@ export type ModelShelfItem =
       tags: string[];
       docsUrl?: string;
       catalogStatus: ModelCatalogStatus;
-      availability: "unknown_info";
+      availability: "connected_unknown";
     };
 
 export function billingLabel(b: BillingType): string {
@@ -155,7 +155,7 @@ export function buildModelShelf(gatewayModelIds: Set<string>): ModelShelfItem[] 
       refundPolicy: "以平台规则为准",
       tags: [],
       catalogStatus: "enabled",
-      availability: "unknown_info"
+      availability: "connected_unknown"
     });
   }
 
@@ -170,7 +170,7 @@ export function availabilityLabel(a: ShelfAvailability): string {
       return "未接入";
     case "maintenance":
       return "维护中";
-    case "unknown_info":
+    case "connected_unknown":
       return "已接入，待补充信息";
     default:
       return "—";

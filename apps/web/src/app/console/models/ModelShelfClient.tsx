@@ -9,17 +9,27 @@ export function ModelShelfClient() {
   const [items, setItems] = useState<ModelShelfItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [gatewayConnected, setGatewayConnected] = useState<boolean | null>(null);
+  const [gatewayError, setGatewayError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/model-shelf", { cache: "no-store" });
-        const json = (await res.json()) as { items?: ModelShelfItem[]; updatedAt?: string; error?: string };
+        const json = (await res.json()) as {
+          items?: ModelShelfItem[];
+          updatedAt?: string;
+          error?: string;
+          gatewayConnected?: boolean;
+          gatewayError?: string;
+        };
         if (!res.ok) throw new Error(json.error || `加载失败 (${res.status})`);
         if (!cancelled) {
           setItems(json.items ?? []);
           setUpdatedAt(json.updatedAt ?? null);
+          setGatewayConnected(json.gatewayConnected ?? false);
+          setGatewayError(json.gatewayError ?? null);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "加载失败");
@@ -48,9 +58,19 @@ export function ModelShelfClient() {
 
   return (
     <>
-      {updatedAt ? (
+      {gatewayConnected === false ? (
+        <div className="pill warn" style={{ marginBottom: 12, fontSize: 13, lineHeight: 1.5 }}>
+          当前未与网关实时对齐
+          {gatewayError === "missing_internal_api_key"
+            ? "（服务端未配置 TOKFAI_INTERNAL_API_KEY，仅展示目录；可用性以实际 API Key 调用为准）。"
+            : gatewayError
+              ? `（${gatewayError}）。`
+              : "。"}
+        </div>
+      ) : null}
+      {gatewayConnected === true && updatedAt ? (
         <div className="muted" style={{ fontSize: 12, marginBottom: 14 }}>
-          网关对齐时间：{new Date(updatedAt).toLocaleString()}
+          已与网关对齐 · {new Date(updatedAt).toLocaleString()}
         </div>
       ) : null}
       <div
