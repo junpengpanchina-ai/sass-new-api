@@ -1,6 +1,10 @@
+import { isAuthGuardDisabled } from "@/lib/authGuard";
+
 import { CopyBaseUrl } from "./_components/CopyBaseUrl";
 
 export default function HomePage() {
+  const authOff = isAuthGuardDisabled();
+
   return (
     <main className="container">
       <div className="card" style={{ padding: 22 }}>
@@ -12,13 +16,21 @@ export default function HomePage() {
               先把“后台可看到的模型列表”跑出来（已接入登录/注册，下一步接网关/权限）。
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <a className="btn" href="/login">
-              登录
-            </a>
-            <a className="btn" href="/register">
-              注册
-            </a>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center" }}>
+            {authOff ? (
+              <span className="pill" style={{ fontSize: 12 }}>
+                未强制登录（设 NEXT_PUBLIC_REQUIRE_LOGIN_FOR_APP=true 可恢复）
+              </span>
+            ) : (
+              <>
+                <a className="btn" href="/login">
+                  登录
+                </a>
+                <a className="btn" href="/register">
+                  注册
+                </a>
+              </>
+            )}
             <a className="btn btnPrimary" href="/dashboard/models">
               进入后台 → 模型
             </a>

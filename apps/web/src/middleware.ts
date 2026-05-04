@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isAuthGuardDisabled } from "@/lib/authGuard";
+
 function isPublicPath(pathname: string) {
   return (
     pathname === "/" ||
@@ -60,6 +62,10 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user }
   } = await supabase.auth.getUser();
+
+  if (isAuthGuardDisabled()) {
+    return response;
+  }
 
   if (!user && (url.pathname.startsWith("/dashboard") || url.pathname.startsWith("/console"))) {
     const loginUrl = new URL("/login", request.url);
