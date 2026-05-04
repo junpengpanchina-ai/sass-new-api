@@ -1,31 +1,34 @@
 const express = require("express");
 const crypto = require("crypto");
+const { env } = require("../lib/env");
+const { writeUsageLog } = require("../lib/usageLogs");
+const { ensureEnoughCredits, chargeCredits } = require("../lib/credits");
 const { apiTokenAuth } = require("../middleware/apiTokenAuth");
 const { requireModelAccess } = require("../middleware/requireModelAccess");
-const { forwardChatCompletion } = require("../lib/upstream");
-const { writeUsageLog } = require("../lib/usageLogs");
-const { chatCostCredits, checkCredits, chargeCredits } = require("../lib/credits");
-
-const DEFAULT_MODEL_IDS = ["gpt-4o-mini", "nano-banana-pro"];
 
 const router = express.Router();
 
+function getUpstreamBaseUrl() {
+  const base = env.UPSTREAM_BASE_URL || env.GRSAI_BASE_URL;
+  if (!base) throw new Error("Missing UPSTREAM_BASE_URL or GRSAI_BASE_URL");
+  return base.replace(/\/$/, "");
+}
+
+function getUpstreamApiKey() {
+  const key = env.UPSTREAM_API_KEY || env.GRSAI_API_KEY;
+  if (!key) throw new Error("Missing UPSTREAM_API_KEY or GRSAI_API_KEY");
+  return key;
+}
+
 router.get("/models", apiTokenAuth, async (req, res) => {
   try {
-    const allowedModels = req.apiToken.allowed_models;
+    const allowedModels = req.apiToken?.allowed_models || [];
 
-    const models =
-      allowedModels === null || allowedModels === undefined
-        ? DEFAULT_MODEL_IDS.map((id) => ({
-            id,
-            object: "model",
-            owned_by: "yourbrand",
-          }))
-        : allowedModels.map((id) => ({
-            id,
-            object: "model",
-            owned_by: "yourbrand",
-          }));
+    const models = allowedModels.map((model) => ({
+      id: model,
+      object: "model",
+      owned_by: "yourbrand",
+    }));
 
     return res.json({
       object: "list",
@@ -46,25 +49,51 @@ router.get("/models", apiTokenAuth, async (req, res) => {
 router.post("/chat/completions", apiTokenAuth, requireModelAccess, async (req, res) => {
   const startedAt = Date.now();
   const requestId = crypto.randomUUID();
+  const model = req.body?.model || "unknown";
+  const locale = req.headers["accept-language"] || null;
 
   try {
-    const payload = req.body;
-    const model = req.requestedModel;
-    const locale = req.headers["accept-language"] || null;
-    const cost = chatCostCredits();
+    const tokenId = req.apiToken?.id;
+    const userId = req.apiToken?.user_id;
 
-    const creditCheck = await checkCredits(req.profile.id, cost);
+    if (!tokenId || !userId) {
+      await writeUsageLog({
+        tokenId: tokenId || null,
+        userId: userId || null,
+        model,
+        status: "error",
+        httpStatus: 401,
+        latencyMs: Date.now() - startedAt,
+        requestId,
+        errorCode: "invalid_token_context",
+        errorMessage: "Missing token or user context",
+        locale,
+      });
+
+      return res.status(401).json({
+        error: {
+          message: "Invalid API token context",
+          type: "auth_error",
+          code: "invalid_token_context",
+          request_id: requestId,
+        },
+      });
+    }
+
+    // 1. 调用前先查余额，不够就不打上游
+    const creditCheck = await ensureEnoughCredits(userId, 1);
+
     if (!creditCheck.ok) {
       await writeUsageLog({
-        tokenId: req.apiToken.id,
-        userId: req.profile.id,
+        tokenId,
+        userId,
         model,
-        status: "denied",
+        status: "rejected",
         httpStatus: 402,
         latencyMs: Date.now() - startedAt,
         requestId,
         errorCode: "insufficient_credits",
-        errorMessage: `Required ${cost} credits, balance ${creditCheck.balance}`,
+        errorMessage: "Insufficient credits",
         locale,
         creditsCharged: 0,
       });
@@ -72,89 +101,109 @@ router.post("/chat/completions", apiTokenAuth, requireModelAccess, async (req, r
       return res.status(402).json({
         error: {
           message: "Insufficient credits",
-          type: "insufficient_credits",
+          type: "billing_error",
           code: "insufficient_credits",
-          message_en: "Insufficient credits to run this request.",
-          message_zh: "额度不足，无法完成本次调用。",
           request_id: requestId,
-          details: { required: cost, balance: creditCheck.balance },
+          credits_balance: creditCheck.creditsBalance,
+          required_credits: creditCheck.requiredCredits,
         },
       });
     }
 
-    const upstreamResult = await forwardChatCompletion(payload);
+    // 2. 调用 GRSAI 上游
+    const upstreamUrl = `${getUpstreamBaseUrl()}/chat/completions`;
+
+    const upstreamResp = await fetch(upstreamUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${getUpstreamApiKey()}`,
+        "Content-Type": "application/json",
+        "Accept-Language": locale || "zh-CN",
+      },
+      body: JSON.stringify(req.body),
+    });
+
+    const text = await upstreamResp.text();
+    let upstreamData;
+    try {
+      upstreamData = JSON.parse(text);
+    } catch (_) {
+      upstreamData = { raw: text };
+    }
+
     const latencyMs = Date.now() - startedAt;
 
-    if (!upstreamResult.ok) {
+    // 3. 上游失败：只记日志，不扣费
+    if (!upstreamResp.ok) {
       await writeUsageLog({
-        tokenId: req.apiToken.id,
-        userId: req.profile.id,
+        tokenId,
+        userId,
         model,
-        status: "error",
-        httpStatus: upstreamResult.status,
+        status: "upstream_error",
+        httpStatus: upstreamResp.status,
         latencyMs,
         requestId,
         errorCode: "upstream_error",
-        errorMessage: JSON.stringify(upstreamResult.data).slice(0, 500),
+        errorMessage: typeof upstreamData === "object" ? JSON.stringify(upstreamData).slice(0, 1000) : String(upstreamData),
         locale,
+        creditsCharged: 0,
       });
 
-      return res.status(upstreamResult.status >= 400 ? upstreamResult.status : 502).json({
-        error: {
-          message: "Upstream request failed",
-          type: "upstream_error",
-          code: "upstream_error",
-          request_id: requestId,
-          details: upstreamResult.data,
-        },
-      });
+      return res.status(upstreamResp.status).json(upstreamData);
     }
 
-    const { id: usageLogId, error: usageInsertError } = await writeUsageLog({
-      tokenId: req.apiToken.id,
-      userId: req.profile.id,
+    // 4. 上游成功后扣 1 credit
+    const charge = await chargeCredits({
+      userId,
+      tokenId,
+      amount: 1,
+      reason: "chat completion",
+      requestId,
+      metadata: {
+        model,
+        locale,
+        upstream: "grsai",
+        stage: "credits_v1",
+      },
+    });
+
+    // 5. 写 usage_logs，带上扣费结果
+    await writeUsageLog({
+      tokenId,
+      userId,
       model,
       status: "ok",
-      httpStatus: upstreamResult.status,
+      httpStatus: upstreamResp.status,
       latencyMs,
       requestId,
       locale,
+      upstreamProvider: "grsai",
+      creditsCharged: charge.creditsCharged,
+      creditLedgerId: charge.ledger?.id || null,
     });
 
-    if (usageInsertError || !usageLogId) {
-      console.error("POST /v1/chat/completions: usage log insert failed after upstream ok", usageInsertError);
-    } else {
-      try {
-        await chargeCredits({
-          userId: req.profile.id,
-          tokenId: req.apiToken.id,
-          usageLogId,
-          amount: cost,
-          requestId,
-        });
-      } catch (chargeErr) {
-        console.error("POST /v1/chat/completions: chargeCredits failed after upstream ok", chargeErr);
-      }
-    }
-
-    return res.status(200).json(upstreamResult.data);
+    return res.status(200).json(upstreamData);
   } catch (error) {
     const latencyMs = Date.now() - startedAt;
 
-    await writeUsageLog({
-      tokenId: req.apiToken?.id || null,
-      userId: req.profile?.id || null,
-      model: req.body?.model || "unknown",
-      status: "error",
-      httpStatus: 500,
-      latencyMs,
-      requestId,
-      errorCode: "gateway_internal_error",
-      errorMessage: error.message,
-      locale: req.headers["accept-language"] || null,
-    });
-
     console.error("POST /v1/chat/completions error:", error);
+
+    try {
+      await writeUsageLog({
+        tokenId: req.apiToken?.id || null,
+        userId: req.apiToken?.user_id || null,
+        model,
+        status: "error",
+        httpStatus: 500,
+        latencyMs,
+        requestId,
+        errorCode: "gateway_internal_error",
+        errorMessage: error.message,
+        locale,
+      });
+    } catch (logError) {
+      console.error("failed to write error usage log:", logError);
+    }
 
     return res.status(500).json({
       error: {
