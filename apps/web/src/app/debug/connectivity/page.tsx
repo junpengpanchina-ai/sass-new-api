@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { API_ORIGIN, OPENAI_BASE_URL } from "@/lib/openaiApiBase";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type CheckStatus = "pending" | "ok" | "fail" | "skip";
@@ -25,9 +26,6 @@ async function fetchText(url: string, init?: RequestInit): Promise<{ ok: boolean
 }
 
 export default function ConnectivityDebugPage() {
-  const dmitFromEnv = normalizeBase(process.env.NEXT_PUBLIC_DMIT_API_URL);
-  const apiBaseFromEnv = normalizeBase(process.env.NEXT_PUBLIC_API_BASE_URL);
-
   const [rows, setRows] = useState<Row[]>(() => [
     { id: "env_supabase_url", label: "环境变量 NEXT_PUBLIC_SUPABASE_URL", status: "pending" },
     { id: "env_supabase_anon", label: "环境变量 NEXT_PUBLIC_SUPABASE_ANON_KEY", status: "pending" },
@@ -51,12 +49,11 @@ export default function ConnectivityDebugPage() {
   };
 
   useEffect(() => {
-    const dmit = normalizeBase(process.env.NEXT_PUBLIC_DMIT_API_URL);
-    const apiBase = normalizeBase(process.env.NEXT_PUBLIC_API_BASE_URL);
     if (typeof window !== "undefined") {
-      // 与页面上 <pre> 一致，便于 DevTools Console 对照 Network
-      console.log("[connectivity] DMIT URL =", process.env.NEXT_PUBLIC_DMIT_API_URL ?? "(未设置)");
-      console.log("[connectivity] API BASE =", process.env.NEXT_PUBLIC_API_BASE_URL ?? "(未设置)");
+      console.log("[connectivity] API_ORIGIN =", API_ORIGIN);
+      console.log("[connectivity] OPENAI_BASE_URL =", OPENAI_BASE_URL);
+      console.log("[connectivity] NEXT_PUBLIC_API_BASE_URL =", process.env.NEXT_PUBLIC_API_BASE_URL ?? "(未设置)");
+      console.log("[connectivity] NEXT_PUBLIC_DMIT_API_URL =", process.env.NEXT_PUBLIC_DMIT_API_URL ?? "(未设置)");
     }
 
     let cancelled = false;
@@ -64,9 +61,7 @@ export default function ConnectivityDebugPage() {
     async function run() {
       const hasUrl = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim());
       const hasAnon = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim());
-      const dmitBase = normalizeBase(process.env.NEXT_PUBLIC_DMIT_API_URL);
-      const apiBase = normalizeBase(process.env.NEXT_PUBLIC_API_BASE_URL);
-      const hasApiBase = Boolean(process.env.NEXT_PUBLIC_API_BASE_URL?.trim());
+      const dmitBase = API_ORIGIN;
 
       patch("env_supabase_url", {
         status: hasUrl ? "ok" : "fail",
@@ -77,14 +72,12 @@ export default function ConnectivityDebugPage() {
         detail: hasAnon ? "已注入构建" : "未设置"
       });
       patch("env_dmit", {
-        status: dmitBase ? "ok" : "skip",
-        detail: dmitBase ? `请求将发往：\n${dmitBase}/\n${dmitBase}/api/system/health` : "未设置：管理端无法调 DMIT；下方 DMIT 检测跳过"
+        status: "ok",
+        detail: `解析后 API_ORIGIN（管理端 / DMIT 主机，无末尾斜杠）：\n${dmitBase}\n\n请求将发往：\n${dmitBase}/\n${dmitBase}/api/system/health`
       });
       patch("env_api_base", {
-        status: hasApiBase ? "ok" : "skip",
-        detail: hasApiBase
-          ? `${apiBase}\n（admin 实际使用 NEXT_PUBLIC_DMIT_API_URL，请确认两者是否应一致）`
-          : "未设置：若代码未使用此项可忽略"
+        status: "ok",
+        detail: `解析后 OPENAI_BASE_URL（OpenAI SDK base_url）：\n${OPENAI_BASE_URL}\n\n构建注入原始值：\nNEXT_PUBLIC_API_BASE_URL = ${process.env.NEXT_PUBLIC_API_BASE_URL ?? "(未设置)"}\nNEXT_PUBLIC_DMIT_API_URL = ${process.env.NEXT_PUBLIC_DMIT_API_URL ?? "(未设置)"}`
       });
 
       if (!hasUrl || !hasAnon) {
@@ -120,12 +113,6 @@ export default function ConnectivityDebugPage() {
             });
           }
         }
-      }
-
-      if (!dmitBase) {
-        patch("dmit_root", { status: "skip", detail: "未配置 NEXT_PUBLIC_DMIT_API_URL" });
-        patch("dmit_system", { status: "skip", detail: "未配置 NEXT_PUBLIC_DMIT_API_URL" });
-        return;
       }
 
       const rootUrl = `${dmitBase}/`;
@@ -236,15 +223,9 @@ export default function ConnectivityDebugPage() {
     );
   };
 
-  const curlBlock =
-    dmitFromEnv != null
-      ? `curl -i ${JSON.stringify(`${dmitFromEnv}/`)}
-curl -i ${JSON.stringify(`${dmitFromEnv}/api/system/health`)}
-curl -i ${JSON.stringify(`${dmitFromEnv}/api/plans`)}`
-      : `# 设置 NEXT_PUBLIC_DMIT_API_URL 后重新部署，或本地填入 .env 再打开本页，将显示带真实域名的命令
-curl -i "https://YOUR_DMIT/"
-curl -i "https://YOUR_DMIT/api/system/health"
-curl -i "https://YOUR_DMIT/api/plans"`;
+  const curlBlock = `curl -i ${JSON.stringify(`${API_ORIGIN}/`)}
+curl -i ${JSON.stringify(`${API_ORIGIN}/api/system/health`)}
+curl -i ${JSON.stringify(`${API_ORIGIN}/api/plans`)}`;
 
   return (
     <main
@@ -284,23 +265,19 @@ curl -i "https://YOUR_DMIT/api/plans"`;
             </li>
             <li>
               <strong>域名 / HTTPS</strong>：新标签页直接打开{" "}
-              {dmitFromEnv ? (
-                <>
-                  <a href={`${dmitFromEnv}/`} target="_blank" rel="noreferrer">
-                    DMIT 根路径
-                  </a>
-                  、
-                  <a href={`${dmitFromEnv}/api/system/health`} target="_blank" rel="noreferrer">
-                    /api/system/health
-                  </a>
-                  、
-                  <a href={`${dmitFromEnv}/api/plans`} target="_blank" rel="noreferrer">
-                    /api/plans
-                  </a>
-                </>
-              ) : (
-                "（配置 DMIT 基址后显示链接）"
-              )}
+              <>
+                <a href={`${API_ORIGIN}/`} target="_blank" rel="noreferrer">
+                  DMIT 根路径
+                </a>
+                、
+                <a href={`${API_ORIGIN}/api/system/health`} target="_blank" rel="noreferrer">
+                  /api/system/health
+                </a>
+                、
+                <a href={`${API_ORIGIN}/api/plans`} target="_blank" rel="noreferrer">
+                  /api/plans
+                </a>
+              </>
               。
             </li>
             <li>
@@ -344,7 +321,7 @@ curl -i "https://YOUR_DMIT/api/plans"`;
           <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>NEXT_PUBLIC_API_BASE_URL</div>
           <pre
             style={{
-              margin: 0,
+              margin: "0 0 12px",
               fontSize: 12,
               padding: 10,
               background: "#f9fafb",
@@ -355,6 +332,21 @@ curl -i "https://YOUR_DMIT/api/plans"`;
             }}
           >
             {process.env.NEXT_PUBLIC_API_BASE_URL ?? "(未设置)"}
+          </pre>
+          <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>解析后 OPENAI_BASE_URL（操练场 / 首页展示）</div>
+          <pre
+            style={{
+              margin: 0,
+              fontSize: 12,
+              padding: 10,
+              background: "#f9fafb",
+              borderRadius: 6,
+              border: "1px solid #eee",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-all"
+            }}
+          >
+            {OPENAI_BASE_URL}
           </pre>
         </section>
 

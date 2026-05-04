@@ -1,13 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { OPENAI_BASE_URL } from "@/lib/openaiApiBase";
 
 export function CopyBaseUrl() {
-  const [url, setUrl] = useState("https://your-platform.com/v1");
-
-  useEffect(() => {
-    setUrl(`${window.location.origin}/v1`);
-  }, []);
+  const url = OPENAI_BASE_URL;
 
   return (
     <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>

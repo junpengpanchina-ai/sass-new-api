@@ -1,3 +1,4 @@
+import { API_ORIGIN } from "@/lib/openaiApiBase";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export type AdminFetchOptions = {
@@ -6,17 +7,8 @@ export type AdminFetchOptions = {
   signal?: AbortSignal;
 };
 
-function getAdminApiBaseUrl() {
-  const base = process.env.NEXT_PUBLIC_DMIT_API_URL;
-  if (!base) return null;
-  return base.replace(/\/+$/, "");
-}
-
 export async function adminFetch<T>(path: string, options: AdminFetchOptions = {}): Promise<T> {
-  const base = getAdminApiBaseUrl();
-  if (!base) {
-    throw new Error("Missing NEXT_PUBLIC_DMIT_API_URL (e.g. https://dmit-api.yourdomain.com)");
-  }
+  const base = API_ORIGIN;
 
   const supabase = createSupabaseBrowserClient();
   if (!supabase) {

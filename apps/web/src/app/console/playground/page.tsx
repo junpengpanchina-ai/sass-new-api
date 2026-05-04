@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { OPENAI_BASE_URL } from "@/lib/openaiApiBase";
+
 type UiModel = {
   id: string;
   provider: string;
@@ -20,7 +22,7 @@ async function getModels() {
 }
 
 export default function PlaygroundPage() {
-  const [baseUrl, setBaseUrl] = useState("");
+  const [baseUrl, setBaseUrl] = useState(OPENAI_BASE_URL);
   const [apiKey, setApiKey] = useState("");
 
   const [models, setModels] = useState<UiModel[]>([]);
@@ -35,10 +37,6 @@ export default function PlaygroundPage() {
   const [error, setError] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setBaseUrl(`${window.location.origin}/v1`);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,8 +91,9 @@ export default function PlaygroundPage() {
 
       setMessages((prev) => [...prev, { role: "assistant", content: json.content || "" }]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "发送失败");
-      setMessages((prev) => [...prev, { role: "assistant", content: "（当前网关尚未接入，这里是操练场占位响应。）" }]);
+      const msg = e instanceof Error ? e.message : "发送失败";
+      setError(msg);
+      setMessages((prev) => [...prev, { role: "assistant", content: `请求失败：${msg}` }]);
     } finally {
       setSending(false);
     }
@@ -179,7 +178,7 @@ export default function PlaygroundPage() {
             ) : null}
 
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-              当前仓库版本：操练场调用的是本地 `/api/playground/chat` 模拟接口，后续会替换为真实网关转发。
+              操练场经 `/api/playground/chat` 转发至 OpenAI 兼容网关（默认 {OPENAI_BASE_URL}）。
             </div>
           </div>
         </aside>

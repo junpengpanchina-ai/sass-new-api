@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { OPENAI_BASE_URL } from "@/lib/openaiApiBase";
+
 type TokenRecord = {
   id: string;
   name: string;
@@ -419,16 +421,12 @@ function EditModal(props: { token: TokenRecord; onClose: () => void; onSubmit: (
 }
 
 function ImportModal(props: { token: TokenRecord; onClose: () => void }) {
-  const [baseUrl, setBaseUrl] = useState("https://your-platform.com/v1");
+  const [baseUrl, setBaseUrl] = useState(OPENAI_BASE_URL);
   const [apiKey, setApiKey] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [app, setApp] = useState<
     "ai-as-workspace" | "ama" | "opencat" | "chatgpt-next-web" | "lobe" | "other"
   >("ai-as-workspace");
-
-  useEffect(() => {
-    setBaseUrl(`${window.location.origin}/v1`);
-  }, []);
 
   async function copyAll() {
     const text = `API Base URL: ${baseUrl}\nAPI Key: ${apiKey || "(请粘贴令牌 Key)"}\nToken: ${props.token.name} (${props.token.id})`;

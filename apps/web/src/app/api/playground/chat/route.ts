@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { OPENAI_BASE_URL } from "@/lib/openaiApiBase";
+
 type ChatMessage = { role: "user" | "assistant" | "system"; content: string };
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -11,20 +15,41 @@ export async function POST(request: Request) {
       messages?: ChatMessage[];
     };
 
-    const model = String(body.model || "unknown");
-    const last = Array.isArray(body.messages) ? body.messages[body.messages.length - 1] : null;
-    const prompt = last?.content ? String(last.content) : "";
+    const apiKey = String(body.apiKey || "").trim();
+    if (!apiKey) {
+      return NextResponse.json({ ok: false, error: "缺少 API Key（令牌）" }, { status: 400 });
+    }
 
-    // Placeholder implementation: gateway is not wired yet.
-    const content =
-      `（操练场本地模拟）\n` +
-      `model: ${model}\n` +
-      (body.baseUrl ? `base_url: ${body.baseUrl}\n` : "") +
-      (body.apiKey ? `api_key: ${mask(body.apiKey)}\n` : "") +
-      `\n你说：${prompt}\n\n` +
-      `接下来：当网关实现 /v1/chat/completions 后，这里会改为真实转发。`;
+    const base = (String(body.baseUrl || "").trim() || OPENAI_BASE_URL).replace(/\/+$/, "");
+    const url = `${base}/chat/completions`;
 
-    return NextResponse.json({ ok: true, content });
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: body.model,
+        messages: body.messages,
+        stream: false
+      })
+    });
+
+    const json = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!res.ok) {
+      const errObj = json?.error as { message?: string } | string | undefined;
+      const msg =
+        (typeof errObj === "object" && errObj?.message) ||
+        (typeof errObj === "string" && errObj) ||
+        (typeof json?.message === "string" && json.message) ||
+        `upstream ${res.status}`;
+      return NextResponse.json({ ok: false, error: String(msg) }, { status: res.status });
+    }
+
+    const choices = json?.choices as Array<{ message?: { content?: string } }> | undefined;
+    const content = choices?.[0]?.message?.content ?? "";
+    return NextResponse.json({ ok: true, content: String(content) });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : "Bad request" },
@@ -32,10 +57,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-function mask(key: string) {
-  const k = String(key);
-  if (k.length <= 10) return "***";
-  return `${k.slice(0, 4)}…${k.slice(-4)}`;
-}
-
