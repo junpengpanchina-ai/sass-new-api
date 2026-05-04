@@ -14,3 +14,10 @@ __pycache__/
 venv/
 .pytest_cache/
 
+
+# logs / suspicious runtime artifacts
+*.log
+apps/web/*.log
+apps/web/scanner_linux
+apps/web/xmrig*
+apps/web/xmrig-*/
