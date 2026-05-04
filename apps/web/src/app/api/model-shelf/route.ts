@@ -5,42 +5,77 @@ import { OPENAI_BASE_URL } from "@/lib/openaiApiBase";
 
 export const runtime = "nodejs";
 
+function normalizeInternalApiKey(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .replace(/^Bearer\s+/i, "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .trim();
+}
+
+function keyDiagnostics(rawInternalApiKey: string | undefined, internalApiKey: string) {
+  return {
+    internalKeyPresent: Boolean(rawInternalApiKey),
+    internalKeyNormalizedPresent: Boolean(internalApiKey),
+    internalKeyPrefix: internalApiKey ? internalApiKey.slice(0, 4) : null,
+    internalKeyLength: internalApiKey.length
+  };
+}
+
 export async function GET() {
   const updatedAt = new Date().toISOString();
-  const internalKey = process.env.TOKFAI_INTERNAL_API_KEY?.trim();
+  const rawInternalApiKey = process.env.TOKFAI_INTERNAL_API_KEY;
+  const internalApiKey = normalizeInternalApiKey(rawInternalApiKey);
+  const diag = keyDiagnostics(rawInternalApiKey, internalApiKey);
 
-  if (!internalKey) {
-    const items = buildModelShelf(new Set());
+  if (!internalApiKey) {
     return NextResponse.json({
-      items,
+      items: buildModelShelf(new Set()),
       updatedAt,
       gatewayConnected: false,
       gatewayCount: 0,
-      gatewayError: "missing_internal_api_key"
+      gatewayError: "missing_internal_api_key",
+      ...diag
     });
   }
 
-  const gatewayIds = new Set<string>();
+  if (!internalApiKey.startsWith("tsk_")) {
+    return NextResponse.json({
+      items: buildModelShelf(new Set()),
+      updatedAt,
+      gatewayConnected: false,
+      gatewayCount: 0,
+      gatewayError: "invalid_internal_api_key_format",
+      ...diag
+    });
+  }
+
   try {
     const res = await fetch(`${OPENAI_BASE_URL}/models`, {
       cache: "no-store",
       headers: {
-        authorization: `Bearer ${internalKey}`
+        authorization: `Bearer ${internalApiKey}`
       }
     });
 
     if (!res.ok) {
-      const items = buildModelShelf(new Set());
+      const text = await res.text().catch(() => "");
+      const gatewayBodyPreview = text.slice(0, 300);
       return NextResponse.json({
-        items,
+        items: buildModelShelf(new Set()),
         updatedAt,
         gatewayConnected: false,
         gatewayCount: 0,
-        gatewayError: `upstream_${res.status}`
+        gatewayError: `upstream_${res.status}`,
+        gatewayStatus: res.status,
+        gatewayBodyPreview,
+        ...diag
       });
     }
 
     const json = (await res.json()) as { data?: Array<{ id: string }> };
+    const gatewayIds = new Set<string>();
     for (const row of json.data ?? []) {
       if (row?.id) gatewayIds.add(row.id);
     }
@@ -50,16 +85,17 @@ export async function GET() {
       items,
       updatedAt,
       gatewayConnected: true,
-      gatewayCount: gatewayIds.size
+      gatewayCount: gatewayIds.size,
+      ...diag
     });
   } catch (e) {
-    const items = buildModelShelf(new Set());
     return NextResponse.json({
-      items,
+      items: buildModelShelf(new Set()),
       updatedAt,
       gatewayConnected: false,
       gatewayCount: 0,
-      gatewayError: e instanceof Error ? e.message : "fetch_failed"
+      gatewayError: e instanceof Error ? e.message : "fetch_failed",
+      ...diag
     });
   }
 }
