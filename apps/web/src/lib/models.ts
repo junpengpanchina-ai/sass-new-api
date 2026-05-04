@@ -1,3 +1,5 @@
+import { MODEL_CATALOG } from "@/lib/modelCatalog";
+
 export type UiModel = {
   id: string;
   provider: string;
@@ -7,38 +9,14 @@ export type UiModel = {
   enabled: boolean;
 };
 
-export const MODELS: UiModel[] = [
-  {
-    id: "gpt-4.1-mini",
-    provider: "openai",
-    label: "GPT-4.1 mini",
-    contextWindow: 128_000,
-    input: "multimodal",
+/** 操练场 / 定价页等：从模型货架配置生成 UI 列表（与网关列表分离）。 */
+export function catalogModelsAsUi(): UiModel[] {
+  return MODEL_CATALOG.filter((c) => c.catalogStatus === "enabled").map((c) => ({
+    id: c.id,
+    provider: c.provider,
+    label: c.displayName,
+    contextWindow: c.contextWindow > 0 ? c.contextWindow : 128_000,
+    input: (c.tags.some((t) => /图|多模态|识图/.test(t)) ? "multimodal" : "text") as "text" | "multimodal",
     enabled: true
-  },
-  {
-    id: "gpt-4.1",
-    provider: "openai",
-    label: "GPT-4.1",
-    contextWindow: 128_000,
-    input: "multimodal",
-    enabled: true
-  },
-  {
-    id: "o4-mini",
-    provider: "openai",
-    label: "o4-mini",
-    contextWindow: 128_000,
-    input: "multimodal",
-    enabled: true
-  },
-  {
-    id: "claude-3.7-sonnet",
-    provider: "anthropic",
-    label: "Claude 3.7 Sonnet",
-    contextWindow: 200_000,
-    input: "text",
-    enabled: false
-  }
-];
-
+  }));
+}

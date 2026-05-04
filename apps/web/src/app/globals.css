@@ -103,6 +103,12 @@ a {
   background: rgba(255, 92, 119, 0.08);
 }
 
+.pill.warn {
+  color: rgba(255, 200, 120, 0.95);
+  border-color: rgba(255, 200, 120, 0.35);
+  background: rgba(255, 200, 120, 0.08);
+}
+
 .table {
   width: 100%;
   border-collapse: separate;

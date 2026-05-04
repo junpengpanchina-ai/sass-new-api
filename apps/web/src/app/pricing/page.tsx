@@ -2,16 +2,14 @@
 
 import { useMemo, useState } from "react";
 
-import { MODELS, type UiModel } from "@/lib/models";
+import { catalogModelsAsUi, type UiModel } from "@/lib/models";
 
 type Price = { inputPer1k: number; outputPer1k: number };
 
-// NOTE: Placeholder pricing table (quota per 1K tokens). Replace with DB/config later.
 const PRICE_TABLE: Record<string, Price> = {
-  "gpt-4.1-mini": { inputPer1k: 0.8, outputPer1k: 3.2 },
-  "gpt-4.1": { inputPer1k: 5, outputPer1k: 15 },
-  "o4-mini": { inputPer1k: 1.2, outputPer1k: 4.8 },
-  "claude-3.7-sonnet": { inputPer1k: 8, outputPer1k: 24 }
+  "gpt-4o-mini": { inputPer1k: 0.25, outputPer1k: 1 },
+  "gemini-3.1-pro": { inputPer1k: 1.5, outputPer1k: 9 },
+  "gemini-3-pro": { inputPer1k: 1.5, outputPer1k: 9 }
 };
 
 function getPrice(modelId: string): Price | null {
@@ -21,7 +19,7 @@ function getPrice(modelId: string): Price | null {
 export default function PricingPage() {
   const [query, setQuery] = useState("");
 
-  const data = useMemo(() => MODELS.filter((m) => m.enabled), []);
+  const data = useMemo(() => catalogModelsAsUi(), []);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return data;

@@ -4,8 +4,8 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Token SaaS V1",
-  description: "Hand-rolled Token SaaS V1"
+  title: "Tokfai API",
+  description: "Tokfai AI Gateway — API keys, models, and usage"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

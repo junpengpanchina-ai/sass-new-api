@@ -22,9 +22,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div style={{ display: "grid", gap: 10, height: "100%" }}>
           <div>
             <div className="pill">Admin</div>
-            <div style={{ marginTop: 8, fontWeight: 700 }}>Token SaaS</div>
+            <div style={{ marginTop: 8, fontWeight: 700 }}>Tokfai</div>
             <div className="muted" style={{ fontSize: 13 }}>
-              老板后台（V1）
+              内部运营后台
             </div>
           </div>
 
@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Link>
             ))}
             <Link className="btn" href="/console" style={{ justifyContent: "flex-start" }}>
-              返回 Console →
+              返回用户控制台
             </Link>
             <Link className="btn" href="/" style={{ justifyContent: "flex-start" }}>
               返回首页
@@ -44,7 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="muted" style={{ fontSize: 12, marginTop: "auto" }}>
-            说明：本页调用 DMIT `/api/admin/*` 接口；需 Supabase admin 账号。
+            需管理员账号；接口经 DMIT 转发。
           </div>
         </div>
       </aside>

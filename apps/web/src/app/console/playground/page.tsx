@@ -167,7 +167,7 @@ export default function PlaygroundPage() {
                 ))}
               </select>
               <div className="muted" style={{ fontSize: 12 }}>
-                {loadingModels ? "加载模型中…" : enabledModels.length ? "从 /api/models 读取" : "暂无可用模型"}
+                {loadingModels ? "加载模型中…" : enabledModels.length ? "与网关可用模型对齐" : "暂无可用模型"}
               </div>
             </label>
 

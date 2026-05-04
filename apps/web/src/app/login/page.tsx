@@ -15,7 +15,7 @@ const OAUTH_PROVIDERS: Array<{ id: OAuthProvider; label: string }> = [
 ];
 
 export default function LoginPage() {
-  const [next, setNext] = useState("/dashboard/models");
+  const [next, setNext] = useState("/console/models");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,7 +24,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setNext(params.get("next") || "/dashboard/models");
+    setNext(params.get("next") || "/console/models");
   }, []);
 
   async function onLogin(e: React.FormEvent) {

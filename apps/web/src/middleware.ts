@@ -21,14 +21,22 @@ export async function middleware(request: NextRequest) {
   if (url.pathname === "/debug/connectivity") {
     const connectivityPageEnabled =
       process.env.NEXT_PUBLIC_ENABLE_CONNECTIVITY_PAGE === "true" ||
-      process.env.NODE_ENV === "development";
+      process.env.NODE_ENV === "development" ||
+      process.env.NEXT_PUBLIC_ENABLE_DEBUG_PAGES === "true";
     if (!connectivityPageEnabled) {
       return new NextResponse("Not Found", { status: 404 });
     }
     return NextResponse.next();
   }
 
-  // Skip for public routes and static assets.
+  if (url.pathname.startsWith("/debug")) {
+    const debugAllowed =
+      process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_ENABLE_DEBUG_PAGES === "true";
+    if (!debugAllowed) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+  }
+
   if (
     isPublicPath(url.pathname) ||
     url.pathname.startsWith("/_next/") ||
@@ -41,6 +49,9 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) {
+    if (url.pathname.startsWith("/admin")) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
     return NextResponse.next();
   }
 
@@ -63,6 +74,18 @@ export async function middleware(request: NextRequest) {
     data: { user }
   } = await supabase.auth.getUser();
 
+  if (url.pathname.startsWith("/admin")) {
+    if (!user) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", url.pathname + url.search);
+      return NextResponse.redirect(loginUrl);
+    }
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (profile?.role !== "admin") {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+  }
+
   if (isAuthGuardDisabled()) {
     return response;
   }
@@ -79,4 +102,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"]
 };
-

@@ -10,10 +10,10 @@ export default function HomePage() {
       <div className="card" style={{ padding: 22 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center" }}>
           <div>
-            <div className="pill">Local Preview</div>
-            <h1 style={{ margin: "10px 0 6px", fontSize: 30, letterSpacing: "-0.02em" }}>Token SaaS V1</h1>
+            <div className="pill">Tokfai API</div>
+            <h1 style={{ margin: "10px 0 6px", fontSize: 30, letterSpacing: "-0.02em" }}>AI Gateway Platform</h1>
             <p className="muted" style={{ margin: 0 }}>
-              先把“后台可看到的模型列表”跑出来（已接入登录/注册，下一步接网关/权限）。
+              统一 API 入口、积分计费与模型货架。登录后可管理 API Keys、查看消耗与充值。
             </p>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center" }}>
@@ -31,8 +31,8 @@ export default function HomePage() {
                 </a>
               </>
             )}
-            <a className="btn btnPrimary" href="/dashboard/models">
-              进入后台 → 模型
+            <a className="btn btnPrimary" href="/console/models">
+              进入控制台 → 模型大全
             </a>
           </div>
         </div>
@@ -53,4 +53,3 @@ export default function HomePage() {
     </main>
   );
 }
-
