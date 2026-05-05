@@ -104,7 +104,7 @@ export default function LoginPage() {
                 inputMode="email"
                 placeholder="you@example.com"
                 required
-                style={inputStyle}
+                className="input"
               />
             </label>
 
@@ -119,7 +119,7 @@ export default function LoginPage() {
                 type="password"
                 placeholder="••••••••"
                 required
-                style={inputStyle}
+                className="input"
               />
             </label>
 
@@ -170,14 +170,4 @@ export default function LoginPage() {
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.12)",
-  background: "rgba(255,255,255,0.06)",
-  color: "rgba(255,255,255,0.92)",
-  outline: "none"
-};
 
