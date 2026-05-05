@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [oauthTip, setOauthTip] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -40,6 +41,7 @@ export default function LoginPage() {
 
   async function onGoogleLogin() {
     setError(null);
+    setOauthTip("已点击 Google 登录，准备跳转授权页…");
     setLoading(true);
     try {
       console.log("[auth] Google login clicked");
@@ -61,11 +63,18 @@ export default function LoginPage() {
         alert(error.message);
         return;
       }
+      // Fallback: some environments/extensions may prevent automatic redirect
+      // (Supabase usually redirects automatically unless skipBrowserRedirect is used).
+      const url = (data as any)?.url as string | undefined;
+      if (url) {
+        window.location.href = url;
+      }
     } catch (err) {
       console.error("[auth] Unexpected Google login error:", err);
       const msg = err instanceof Error ? err.message : "OAuth 登录失败";
       setError(msg);
       alert(msg);
+      setOauthTip(null);
     }
   }
 
@@ -115,6 +124,11 @@ export default function LoginPage() {
                 {error}
               </div>
             ) : null}
+            {oauthTip ? (
+              <div className="pill good" style={{ justifySelf: "start" }}>
+                {oauthTip}
+              </div>
+            ) : null}
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
               <button className="btn btnPrimary" type="submit" disabled={loading}>
@@ -136,7 +150,7 @@ export default function LoginPage() {
             点击按钮跳转授权后自动登录。
           </div>
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-            <button className="btn" type="button" onClick={onGoogleLogin} disabled={loading}>
+            <button className="btn" type="button" onClick={() => void onGoogleLogin()} disabled={loading}>
               <span style={{ width: 8, height: 8, borderRadius: 999, background: "rgba(124,92,255,0.9)" }} />
               {loading ? "正在跳转…" : "使用 Google 登录"}
             </button>
