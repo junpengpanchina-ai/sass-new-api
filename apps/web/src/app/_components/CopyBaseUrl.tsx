@@ -28,8 +28,8 @@ export function CopyBaseUrl() {
       >
         复制
       </button>
-      <a className="btn btnPrimary" href="/console/playground">
-        去操练场
+      <a className="btn btnPrimary" href="/console/token">
+        Create API Key →
       </a>
     </div>
   );
