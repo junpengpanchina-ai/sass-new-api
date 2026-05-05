@@ -19,6 +19,8 @@ export async function GET(request: Request) {
   }
 
   const cookieStore = await cookies();
+  const response = NextResponse.redirect(new URL(next, url));
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
+          response.cookies.set(name, value, options);
         });
       }
     }
@@ -38,6 +40,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=callback_failed`);
   }
 
-  return NextResponse.redirect(new URL(next, url));
+  return response;
 }
 

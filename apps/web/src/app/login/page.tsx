@@ -2,15 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Provider } from "@supabase/supabase-js";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-
-type OAuthProvider = "google";
-
-const OAUTH_PROVIDERS: Array<{ id: OAuthProvider; label: string }> = [
-  { id: "google", label: "Google" }
-];
 
 export default function LoginPage() {
   const [next, setNext] = useState("/console/models");
@@ -45,24 +38,34 @@ export default function LoginPage() {
     }
   }
 
-  async function onOAuth(provider: OAuthProvider) {
+  async function onGoogleLogin() {
     setError(null);
     setLoading(true);
     try {
+      console.log("[auth] Google login clicked");
       const supabase = createSupabaseBrowserClient();
       if (!supabase) throw new Error("Supabase 未配置：请设置 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
-      const origin = window.location.origin;
-      const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
+      console.log("[auth] Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-      const { error } = await supabase.auth.signInWithOAuth({
-        // Supabase supports custom providers; "linuxdo" should be configured in your Auth settings.
-        provider: provider as Provider,
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+      console.log("[auth] Redirect to:", redirectTo);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
         options: { redirectTo }
       });
-      if (error) throw error;
+      console.log("[auth] signInWithOAuth result:", { data, error });
+      if (error) {
+        console.error("[auth] Google login error:", error);
+        setError(error.message);
+        alert(error.message);
+        return;
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "OAuth 登录失败");
-      setLoading(false);
+      console.error("[auth] Unexpected Google login error:", err);
+      const msg = err instanceof Error ? err.message : "OAuth 登录失败";
+      setError(msg);
+      alert(msg);
     }
   }
 
@@ -133,12 +136,10 @@ export default function LoginPage() {
             点击按钮跳转授权后自动登录。
           </div>
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-            {OAUTH_PROVIDERS.map((p) => (
-              <button key={p.id} className="btn" type="button" onClick={() => onOAuth(p.id)} disabled={loading}>
-                <span style={{ width: 8, height: 8, borderRadius: 999, background: "rgba(124,92,255,0.9)" }} />
-                使用 {p.label} 登录
-              </button>
-            ))}
+            <button className="btn" type="button" onClick={onGoogleLogin} disabled={loading}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: "rgba(124,92,255,0.9)" }} />
+              {loading ? "正在跳转…" : "使用 Google 登录"}
+            </button>
           </div>
           <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
             提示：需要在 Supabase Auth 里启用 Google Provider，并配置回调地址。
