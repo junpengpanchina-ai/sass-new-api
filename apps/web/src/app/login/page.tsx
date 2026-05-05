@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
+const AUTH_DEBUG_VERSION = "hard-oauth-2026-05-05-01";
+
 export default function LoginPage() {
   const [next, setNext] = useState("/console/models");
 
@@ -44,37 +46,39 @@ export default function LoginPage() {
     setOauthTip("已点击 Google 登录，准备跳转授权页…");
     setLoading(true);
     try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+      console.log("[auth]", AUTH_DEBUG_VERSION);
       console.log("[auth] Google login clicked");
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) throw new Error("Supabase 未配置：请设置 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
-      console.log("[auth] Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log("[auth] NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl);
 
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
-      console.log("[auth] Redirect to:", redirectTo);
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo }
-      });
-      console.log("[auth] signInWithOAuth result:", { data, error });
-      if (error) {
-        console.error("[auth] Google login error:", error);
-        setError(error.message);
-        alert(error.message);
+      if (!supabaseUrl) {
+        const msg = "Missing NEXT_PUBLIC_SUPABASE_URL";
+        console.error("[auth]", msg);
+        setError(msg);
+        alert(msg);
         return;
       }
-      // Fallback: some environments/extensions may prevent automatic redirect
-      // (Supabase usually redirects automatically unless skipBrowserRedirect is used).
-      const url = (data as any)?.url as string | undefined;
-      if (url) {
-        window.location.href = url;
-      }
+
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const authorizeUrl =
+        `${supabaseUrl.replace(/\/$/, "")}/auth/v1/authorize` +
+        `?provider=google` +
+        `&redirect_to=${encodeURIComponent(redirectTo)}` +
+        `&state=${encodeURIComponent(JSON.stringify({ next }))}`;
+
+      console.log("[auth] redirectTo:", redirectTo);
+      console.log("[auth] authorizeUrl:", authorizeUrl);
+
+      window.location.href = authorizeUrl;
     } catch (err) {
       console.error("[auth] Unexpected Google login error:", err);
       const msg = err instanceof Error ? err.message : "OAuth 登录失败";
       setError(msg);
       alert(msg);
       setOauthTip(null);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -146,6 +150,9 @@ export default function LoginPage() {
 
         <aside className="card" style={{ padding: 16, background: "rgba(255,255,255,0.04)" }}>
           <div style={{ fontWeight: 700, marginBottom: 10 }}>第三方登录</div>
+          <div className="muted" style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>
+            Auth Debug Version: {AUTH_DEBUG_VERSION}
+          </div>
           <div className="muted" style={{ fontSize: 13 }}>
             点击按钮跳转授权后自动登录。
           </div>
