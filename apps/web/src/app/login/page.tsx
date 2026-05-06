@@ -7,6 +7,19 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const AUTH_DEBUG_VERSION = "hard-oauth-2026-05-05-01";
 
+const PHONE_COUNTRIES = [
+  { label: "China", code: "+86", example: "18617378246" },
+  { label: "United States", code: "+1", example: "4155552671" },
+  { label: "Singapore", code: "+65", example: "81234567" },
+  { label: "Hong Kong", code: "+852", example: "51234567" },
+  { label: "Japan", code: "+81", example: "9012345678" },
+  { label: "United Kingdom", code: "+44", example: "7400123456" },
+  { label: "Canada", code: "+1", example: "4165552671" },
+  { label: "Australia", code: "+61", example: "412345678" },
+  { label: "Malaysia", code: "+60", example: "123456789" },
+  { label: "Thailand", code: "+66", example: "812345678" }
+] as const;
+
 export default function LoginPage() {
   const [next, setNext] = useState("/console/models");
 
@@ -17,7 +30,8 @@ export default function LoginPage() {
   const [oauthTip, setOauthTip] = useState<string | null>(null);
 
   const [showPhoneLogin, setShowPhoneLogin] = useState(false);
-  const [phone, setPhone] = useState("");
+  const [localPhone, setLocalPhone] = useState("");
+  const [selectedCountryCode, setSelectedCountryCode] = useState("+86");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [phoneLoading, setPhoneLoading] = useState(false);
@@ -39,6 +53,11 @@ export default function LoginPage() {
 
     return () => window.clearInterval(timer);
   }, [cooldown]);
+
+  const buildE164Phone = () => {
+    const digits = localPhone.replace(/\D/g, "");
+    return `${selectedCountryCode}${digits}`;
+  };
 
   async function onLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -64,15 +83,16 @@ export default function LoginPage() {
     try {
       setPhoneError(null);
 
-      const normalizedPhone = phone.trim();
+      const digits = localPhone.replace(/\D/g, "");
+      const e164Phone = `${selectedCountryCode}${digits}`;
 
-      if (!normalizedPhone) {
+      if (!digits) {
         setPhoneError("Please enter your phone number.");
         return;
       }
 
-      if (!normalizedPhone.startsWith("+")) {
-        setPhoneError("Please use international format, for example +14155552671.");
+      if (digits.length < 6) {
+        setPhoneError("Please enter a valid phone number.");
         return;
       }
 
@@ -91,10 +111,10 @@ export default function LoginPage() {
       const supabase = createSupabaseBrowserClient();
       if (!supabase) throw new Error("Supabase 未配置：请设置 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-      console.log("[phone-auth] sending OTP to:", normalizedPhone);
+      console.log("[phone-auth] sending OTP to:", e164Phone);
 
       const { error } = await supabase.auth.signInWithOtp({
-        phone: normalizedPhone
+        phone: e164Phone
       });
 
       if (error) {
@@ -118,11 +138,17 @@ export default function LoginPage() {
     try {
       setPhoneError(null);
 
-      const normalizedPhone = phone.trim();
+      const digits = localPhone.replace(/\D/g, "");
       const normalizedOtp = otp.trim();
+      const e164Phone = `${selectedCountryCode}${digits}`;
 
-      if (!normalizedPhone.startsWith("+")) {
-        setPhoneError("Please use international phone format.");
+      if (!digits) {
+        setPhoneError("Please enter your phone number.");
+        return;
+      }
+
+      if (digits.length < 6) {
+        setPhoneError("Please enter a valid phone number.");
         return;
       }
 
@@ -136,10 +162,10 @@ export default function LoginPage() {
       const supabase = createSupabaseBrowserClient();
       if (!supabase) throw new Error("Supabase 未配置：请设置 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-      console.log("[phone-auth] verifying OTP for:", normalizedPhone);
+      console.log("[phone-auth] verifying OTP for:", e164Phone);
 
       const { error } = await supabase.auth.verifyOtp({
-        phone: normalizedPhone,
+        phone: e164Phone,
         token: normalizedOtp,
         type: "sms"
       });
@@ -309,22 +335,50 @@ export default function LoginPage() {
               >
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Phone login</div>
                 <div className="muted" style={{ fontSize: 12, opacity: 0.75 }}>
-                  Use international phone format, for example +1 for US, +65 for Singapore, or +86 for China.
+                  Select your country code, then enter your phone number.
                 </div>
 
                 <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
                   <label style={{ display: "grid", gap: 6 }}>
                     <div className="muted" style={{ fontSize: 12 }}>
+                      Country / Region
+                    </div>
+                    <select
+                      value={selectedCountryCode}
+                      onChange={(event) => setSelectedCountryCode(event.target.value)}
+                      className="input"
+                      disabled={phoneLoading}
+                    >
+                      {PHONE_COUNTRIES.map((country) => (
+                        <option key={`${country.label}-${country.code}`} value={country.code}>
+                          {country.label} {country.code}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <div className="muted" style={{ fontSize: 12 }}>
                       Phone number
                     </div>
                     <input
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="+14155552671"
+                      value={localPhone}
+                      onChange={(event) => {
+                        const value = event.target.value.replace(/[^\d]/g, "");
+                        setLocalPhone(value);
+                      }}
+                      placeholder={PHONE_COUNTRIES.find((country) => country.code === selectedCountryCode)?.example || "Phone number"}
+                      inputMode="tel"
                       className="input"
                       disabled={phoneLoading}
                     />
                   </label>
+
+                  {localPhone ? (
+                    <div className="muted" style={{ fontSize: 12, opacity: 0.7 }}>
+                      Verification code will be sent to {buildE164Phone()}
+                    </div>
+                  ) : null}
 
                   {otpSent ? (
                     <label style={{ display: "grid", gap: 6 }}>
