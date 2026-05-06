@@ -427,9 +427,6 @@ export default function LoginPage() {
               </div>
             ) : null}
           </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-            提示：需要在 Supabase Auth 里启用 Google Provider，并配置回调地址。
-          </div>
         </aside>
       </div>
     </main>
