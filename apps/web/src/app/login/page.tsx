@@ -8,8 +8,8 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 const AUTH_DEBUG_VERSION = "hard-oauth-2026-05-05-01";
 
 const PHONE_COUNTRIES = [
-  { label: "China", code: "+86", example: "13800138000" },
   { label: "United States", code: "+1", example: "4155552671" },
+  { label: "China", code: "+86", example: "13800138000" },
   { label: "Singapore", code: "+65", example: "81234567" },
   { label: "Hong Kong", code: "+852", example: "51234567" },
   { label: "Japan", code: "+81", example: "9012345678" },
@@ -31,7 +31,7 @@ export default function LoginPage() {
 
   const [showPhoneLogin, setShowPhoneLogin] = useState(false);
   const [localPhone, setLocalPhone] = useState("");
-  const [selectedCountryCode, setSelectedCountryCode] = useState("+86");
+  const [selectedCountryCode, setSelectedCountryCode] = useState("+1");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [phoneLoading, setPhoneLoading] = useState(false);
