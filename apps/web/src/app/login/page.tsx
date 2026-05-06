@@ -8,7 +8,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 const AUTH_DEBUG_VERSION = "hard-oauth-2026-05-05-01";
 
 const PHONE_COUNTRIES = [
-  { label: "China", code: "+86", example: "18617378246" },
+  { label: "China", code: "+86", example: "13800138000" },
   { label: "United States", code: "+1", example: "4155552671" },
   { label: "Singapore", code: "+65", example: "81234567" },
   { label: "Hong Kong", code: "+852", example: "51234567" },
