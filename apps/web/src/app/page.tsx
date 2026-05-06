@@ -132,6 +132,36 @@ export default function HomePage() {
               Note: this key is your Tokfai API key (not your Supabase session token).
             </div>
           </div>
+
+          <div className="card" style={{ padding: 14, background: "rgba(255,255,255,0.04)" }}>
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>How Tokfai Uses Google Sign-In</div>
+            <div className="muted" style={{ fontSize: 13, display: "grid", gap: 10 }}>
+              <div>
+                Tokfai uses Google Sign-In only to authenticate users and manage account access. When you sign in with
+                Google, Tokfai may collect basic account information such as your email address and user ID (and optional
+                public profile fields provided by Google).
+              </div>
+              <div>
+                Tokfai may also record service usage information such as API request time, selected model, token usage,
+                and credit consumption for billing, fraud prevention, service reliability, debugging, and customer
+                support.
+              </div>
+              <div>
+                Tokfai does not request access to your Google Drive, Gmail, Calendar, Contacts, or other Google services.
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <a className="btn" style={{ padding: "6px 10px" }} href="/privacy">
+                  Privacy Policy
+                </a>
+                <a className="btn" style={{ padding: "6px 10px" }} href="/terms">
+                  Terms of Service
+                </a>
+                <a className="btn" style={{ padding: "6px 10px" }} href="/login">
+                  Sign in
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
