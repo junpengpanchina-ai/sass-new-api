@@ -226,6 +226,40 @@ export default function LoginPage() {
     }
   }
 
+  const handleGithubLogin = () => {
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+      console.log("[auth]", AUTH_DEBUG_VERSION);
+      console.log("[auth] GitHub login clicked");
+      console.log("[auth] NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl);
+
+      if (!supabaseUrl) {
+        const message = "Missing NEXT_PUBLIC_SUPABASE_URL";
+        console.error("[auth]", message);
+        alert(message);
+        return;
+      }
+
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+      const redirectTo = isLocalhost ? `${window.location.origin}/auth/callback` : "https://tokfai.com/auth/callback";
+
+      const authorizeUrl =
+        `${supabaseUrl.replace(/\/$/, "")}/auth/v1/authorize` +
+        `?provider=github` +
+        `&redirect_to=${encodeURIComponent(redirectTo)}`;
+
+      console.log("[auth] GitHub redirectTo:", redirectTo);
+      console.log("[auth] GitHub authorizeUrl:", authorizeUrl);
+
+      window.location.href = authorizeUrl;
+    } catch (error) {
+      console.error("[auth] GitHub login failed:", error);
+      alert("GitHub login failed. Please try again.");
+    }
+  };
+
   return (
     <main className="container" style={{ maxWidth: 920 }}>
       <div className="card" style={{ padding: 22, display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 18 }}>
@@ -304,6 +338,10 @@ export default function LoginPage() {
             <button className="btn" type="button" onClick={() => void onGoogleLogin()} disabled={loading}>
               <span style={{ width: 8, height: 8, borderRadius: 999, background: "rgba(124,92,255,0.9)" }} />
               {loading ? "正在跳转…" : "使用 Google 登录"}
+            </button>
+            <button className="btn" type="button" onClick={handleGithubLogin} disabled={loading}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: "rgba(255,255,255,0.9)" }} />
+              使用 GitHub 登录
             </button>
           </div>
 
