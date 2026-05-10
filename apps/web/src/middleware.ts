@@ -71,7 +71,8 @@ export async function middleware(request: NextRequest) {
   // Exception: if already logged in, visiting /login will redirect to next or /dashboard.
   if (isPublicPath(url.pathname)) {
     if (url.pathname === "/login" && supabaseUrl && supabaseAnonKey) {
-      let response = NextResponse.next({ request });
+      const next = getSafeNextPath(url.searchParams.get("next"));
+      const redirectResponse = NextResponse.redirect(new URL(next, url.origin));
       const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
         cookies: {
           getAll() {
@@ -79,7 +80,7 @@ export async function middleware(request: NextRequest) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
+              redirectResponse.cookies.set(name, value, options);
             });
           }
         }
@@ -88,8 +89,7 @@ export async function middleware(request: NextRequest) {
         data: { user }
       } = await supabase.auth.getUser();
       if (user) {
-        const next = getSafeNextPath(url.searchParams.get("next"));
-        return NextResponse.redirect(new URL(next, url.origin));
+        return redirectResponse;
       }
     }
     return NextResponse.next();
