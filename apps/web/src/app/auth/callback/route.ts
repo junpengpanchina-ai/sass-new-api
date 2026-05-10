@@ -2,12 +2,20 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+function isSafeNextPath(next: string | null) {
+  if (!next) return false;
+  if (!next.startsWith("/")) return false;
+  if (next.startsWith("//")) return false;
+  return true;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const nextFromQuery = url.searchParams.get("next");
   const state = url.searchParams.get("state");
-  const origin = url.origin;
+  const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  const origin = isLocalhost ? url.origin : "https://tokfai.com";
 
   // Provider / Supabase may redirect back with error params (no code)
   const errorParam = url.searchParams.get("error");
@@ -40,17 +48,24 @@ export async function GET(request: Request) {
   }
 
   const cookieStore = await cookies();
-  let next = nextFromQuery || "/dashboard";
+  let next = isSafeNextPath(nextFromQuery) ? String(nextFromQuery) : "/dashboard";
   try {
-    if (!nextFromQuery && state) {
+    if (!isSafeNextPath(nextFromQuery) && state) {
       const parsed = JSON.parse(state) as { next?: string } | null;
-      if (parsed?.next && typeof parsed.next === "string") next = parsed.next;
+      if (typeof parsed?.next === "string" && isSafeNextPath(parsed.next)) next = parsed.next;
     }
   } catch {
     // ignore invalid state
   }
 
-  const response = NextResponse.redirect(new URL(next, url));
+  console.log("[auth-callback] start", {
+    href: url.toString(),
+    host: url.hostname,
+    hasCode: Boolean(code),
+    next,
+  });
+
+  const response = NextResponse.redirect(new URL(next, origin));
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -74,6 +89,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(redirect);
   }
 
+  console.log("[auth-callback] exchange success");
   return response;
 }
 

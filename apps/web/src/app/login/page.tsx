@@ -20,8 +20,25 @@ const PHONE_COUNTRIES = [
   { label: "Thailand", code: "+66", example: "812345678" }
 ] as const;
 
+function getSafeNextPath() {
+  if (typeof window === "undefined") return "/dashboard";
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
+  if (!next) return "/dashboard";
+  if (!next.startsWith("/")) return "/dashboard";
+  if (next.startsWith("//")) return "/dashboard";
+  return next;
+}
+
+function getAuthRedirectTo() {
+  const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const baseUrl = isLocalhost ? window.location.origin : "https://tokfai.com";
+  const next = getSafeNextPath();
+  return `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}`;
+}
+
 export default function LoginPage() {
-  const [next, setNext] = useState("/console/models");
+  const [next, setNext] = useState("/dashboard");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,8 +57,7 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setNext(params.get("next") || "/console/models");
+    setNext(getSafeNextPath());
   }, []);
 
   useEffect(() => {
@@ -71,7 +87,7 @@ export default function LoginPage() {
         password
       });
       if (error) throw error;
-      window.location.href = next;
+      window.location.href = getSafeNextPath();
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     } finally {
@@ -176,7 +192,17 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = "/dashboard";
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log("[phone-auth] session after verify:", {
+        hasSession: Boolean(sessionData.session),
+        userId: sessionData.session?.user?.id
+      });
+      if (!sessionData.session) {
+        setPhoneError("Verification succeeded but no session was created. Please try again.");
+        return;
+      }
+
+      window.location.href = getSafeNextPath();
     } catch (err: any) {
       console.error("[phone-auth] unexpected verify OTP error:", err);
       setPhoneError(err?.message || "Failed to verify code.");
@@ -204,12 +230,13 @@ export default function LoginPage() {
         return;
       }
 
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      const redirectTo = getAuthRedirectTo();
+      const safeNext = getSafeNextPath();
       const authorizeUrl =
         `${supabaseUrl.replace(/\/$/, "")}/auth/v1/authorize` +
         `?provider=google` +
         `&redirect_to=${encodeURIComponent(redirectTo)}` +
-        `&state=${encodeURIComponent(JSON.stringify({ next }))}`;
+        `&state=${encodeURIComponent(JSON.stringify({ next: safeNext }))}`;
 
       console.log("[auth] redirectTo:", redirectTo);
       console.log("[auth] authorizeUrl:", authorizeUrl);
@@ -241,14 +268,14 @@ export default function LoginPage() {
         return;
       }
 
-      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-
-      const redirectTo = isLocalhost ? `${window.location.origin}/auth/callback` : "https://tokfai.com/auth/callback";
+      const redirectTo = getAuthRedirectTo();
+      const safeNext = getSafeNextPath();
 
       const authorizeUrl =
         `${supabaseUrl.replace(/\/$/, "")}/auth/v1/authorize` +
         `?provider=github` +
-        `&redirect_to=${encodeURIComponent(redirectTo)}`;
+        `&redirect_to=${encodeURIComponent(redirectTo)}` +
+        `&state=${encodeURIComponent(JSON.stringify({ next: safeNext }))}`;
 
       console.log("[auth] GitHub redirectTo:", redirectTo);
       console.log("[auth] GitHub authorizeUrl:", authorizeUrl);
