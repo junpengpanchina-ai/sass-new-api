@@ -37,6 +37,16 @@ function getAuthRedirectTo() {
   return `${baseUrl}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 
+function withLoginSuccessParam(path: string) {
+  try {
+    const url = new URL(path, window.location.origin);
+    url.searchParams.set("logged_in", "1");
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return "/dashboard?logged_in=1";
+  }
+}
+
 export default function LoginPage() {
   const [next, setNext] = useState("/dashboard");
 
@@ -87,7 +97,7 @@ export default function LoginPage() {
         password
       });
       if (error) throw error;
-      window.location.href = getSafeNextPath();
+      window.location.href = withLoginSuccessParam(getSafeNextPath());
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     } finally {
@@ -202,7 +212,7 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = getSafeNextPath();
+      window.location.href = withLoginSuccessParam(getSafeNextPath());
     } catch (err: any) {
       console.error("[phone-auth] unexpected verify OTP error:", err);
       setPhoneError(err?.message || "Failed to verify code.");

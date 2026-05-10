@@ -65,7 +65,9 @@ export async function GET(request: Request) {
     next,
   });
 
-  const response = NextResponse.redirect(new URL(next, origin));
+  const redirectUrl = new URL(next, origin);
+  redirectUrl.searchParams.set("logged_in", "1");
+  const response = NextResponse.redirect(redirectUrl);
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
