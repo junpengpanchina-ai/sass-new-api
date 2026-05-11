@@ -71,6 +71,14 @@ export async function middleware(request: NextRequest) {
   // Exception: if already logged in, visiting /login will redirect to next or /dashboard.
   if (isPublicPath(url.pathname)) {
     if (url.pathname === "/login" && supabaseUrl && supabaseAnonKey) {
+      const hasSupabaseSessionCookie = request.cookies
+        .getAll()
+        .some((c) => c.name.startsWith("sb-") || c.name.includes("supabase"));
+      // Fast path: no Supabase auth cookie → skip remote getUser() (faster first paint for /login).
+      if (!hasSupabaseSessionCookie) {
+        return NextResponse.next();
+      }
+
       const next = getSafeNextPath(url.searchParams.get("next"));
       const redirectResponse = NextResponse.redirect(new URL(next, url.origin));
       const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {

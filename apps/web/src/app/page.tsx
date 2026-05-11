@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { CopyBaseUrl } from "./_components/CopyBaseUrl";
 
 export default function HomePage() {
@@ -11,16 +13,25 @@ export default function HomePage() {
               OpenAI-compatible AI Gateway
             </div>
           </div>
-          <nav style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <a className="btn" href="/pricing">
+          <nav
+            style={{
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              justifyContent: "flex-end",
+              position: "relative",
+              zIndex: 2,
+            }}
+          >
+            <Link className="btn" href="/pricing" prefetch={false}>
               Pricing
-            </a>
-            <a className="btn" href="/console/token">
+            </Link>
+            <Link className="btn" href="/console/token" prefetch={false}>
               Console
-            </a>
-            <a className="btn" href="/login">
+            </Link>
+            <Link className="btn" href="/login" prefetch={false}>
               Login
-            </a>
+            </Link>
           </nav>
         </div>
       </header>
@@ -88,9 +99,9 @@ export default function HomePage() {
             <div style={{ fontWeight: 800, marginBottom: 8 }}>How it works</div>
             <ol className="muted" style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, fontSize: 13 }}>
               <li>
-                <a className="btn" style={{ padding: "6px 10px" }} href="/login">
+                <Link className="btn" style={{ padding: "6px 10px" }} href="/login" prefetch={false}>
                   Login
-                </a>{" "}
+                </Link>{" "}
                 to create an account.
               </li>
               <li>
@@ -156,9 +167,9 @@ export default function HomePage() {
                 <a className="btn" style={{ padding: "6px 10px" }} href="/terms">
                   Terms of Service
                 </a>
-                <a className="btn" style={{ padding: "6px 10px" }} href="/login">
+                <Link className="btn" style={{ padding: "6px 10px" }} href="/login" prefetch={false}>
                   Sign in
-                </a>
+                </Link>
               </div>
             </div>
           </div>
