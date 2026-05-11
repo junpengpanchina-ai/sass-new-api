@@ -10,37 +10,10 @@ export function createSupabaseBrowserClient() {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
 
-  return createBrowserClient(url, anonKey, {
-    cookies: {
-      getAll() {
-        if (typeof document === "undefined") return [];
-        return document.cookie
-          .split(";")
-          .map((cookie) => cookie.trim())
-          .filter(Boolean)
-          .map((cookie) => {
-            const eqIndex = cookie.indexOf("=");
-            if (eqIndex === -1) return null;
-            const name = cookie.slice(0, eqIndex);
-            const value = cookie.slice(eqIndex + 1);
-            return { name, value };
-          })
-          .filter((c): c is { name: string; value: string } => Boolean(c?.name));
-      },
-      setAll(cookiesToSet) {
-        if (typeof document === "undefined") return;
-        cookiesToSet.forEach(({ name, value, options }) => {
-          let cookie = `${name}=${value}`;
-          if (options?.path) cookie += `; Path=${options.path}`;
-          if (options?.maxAge !== undefined) cookie += `; Max-Age=${options.maxAge}`;
-          if (options?.expires) cookie += `; Expires=${options.expires.toUTCString()}`;
-          if (options?.sameSite) cookie += `; SameSite=${options.sameSite}`;
-          if (options?.secure) cookie += `; Secure`;
-          if (options?.domain) cookie += `; Domain=${options.domain}`;
-          document.cookie = cookie;
-        });
-      },
-    },
-  });
+  // Do not pass a custom `cookies` adapter here: @supabase/ssr already uses
+  // `cookie.parse` / `cookie.serialize` on document.cookie in the browser, which
+  // correctly encodes JWT values and chunk names. A naive string split on "="
+  // breaks values containing "=" and can prevent session cookies from persisting.
+  return createBrowserClient(url, anonKey);
 }
 
