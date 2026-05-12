@@ -70,6 +70,26 @@ export default function LoginPage() {
     setNext(getSafeNextPath());
   }, []);
 
+  // If session already exists (e.g. user bookmarked /login), skip middleware and redirect here.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) return;
+        const { data } = await supabase.auth.getSession();
+        if (!cancelled && data.session) {
+          window.location.replace(getSafeNextPath());
+        }
+      } catch {
+        /* env missing or client-only */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     if (cooldown <= 0) return;
 

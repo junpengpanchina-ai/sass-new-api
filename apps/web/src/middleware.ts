@@ -17,13 +17,6 @@ const PROTECTED_PREFIXES = [
   "/admin",
 ] as const;
 
-function getSafeNextPath(next: string | null) {
-  if (!next) return "/dashboard";
-  if (!next.startsWith("/")) return "/dashboard";
-  if (next.startsWith("//")) return "/dashboard";
-  return next;
-}
-
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname as (typeof PUBLIC_PATHS)[number])) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -68,38 +61,10 @@ export async function middleware(request: NextRequest) {
   const hasSupabaseEnv = Boolean(supabaseUrl && supabaseAnonKey);
 
   // Public paths always pass through (no auth required).
-  // Exception: if already logged in, visiting /login will redirect to next or /dashboard.
+  // Do not call Supabase getUser() for /login in middleware: Edge can stall or mis-read
+  // partial cookies, making /login appear to "never load". Already-logged-in redirect
+  // is handled client-side in apps/web/src/app/login/page.tsx.
   if (isPublicPath(url.pathname)) {
-    if (url.pathname === "/login" && supabaseUrl && supabaseAnonKey) {
-      const hasSupabaseSessionCookie = request.cookies
-        .getAll()
-        .some((c) => c.name.startsWith("sb-") || c.name.includes("supabase"));
-      // Fast path: no Supabase auth cookie → skip remote getUser() (faster first paint for /login).
-      if (!hasSupabaseSessionCookie) {
-        return NextResponse.next();
-      }
-
-      const next = getSafeNextPath(url.searchParams.get("next"));
-      const redirectResponse = NextResponse.redirect(new URL(next, url.origin));
-      const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              redirectResponse.cookies.set(name, value, options);
-            });
-          }
-        }
-      });
-      const {
-        data: { user }
-      } = await supabase.auth.getUser();
-      if (user) {
-        return redirectResponse;
-      }
-    }
     return NextResponse.next();
   }
 
