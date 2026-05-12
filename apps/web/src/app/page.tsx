@@ -34,6 +34,22 @@ export default function HomePage() {
             </Link>
           </nav>
         </div>
+        <p className="muted" style={{ fontSize: 12, margin: "14px 0 0", lineHeight: 1.55, maxWidth: 820 }}>
+          This website at{" "}
+          <a href="https://tokfai.com" style={{ color: "inherit", textDecoration: "underline" }}>
+            https://tokfai.com
+          </a>{" "}
+          is the official public homepage for the Tokfai application—the same URL we provide as the application home page
+          for Google OAuth. Our{" "}
+          <Link href="/privacy" prefetch={false} style={{ color: "inherit", textDecoration: "underline" }}>
+            Privacy Policy
+          </Link>{" "}
+          and{" "}
+          <Link href="/terms" prefetch={false} style={{ color: "inherit", textDecoration: "underline" }}>
+            Terms of Service
+          </Link>{" "}
+          match the links on our OAuth consent screen.
+        </p>
       </header>
 
       <section className="card" style={{ padding: 22, marginTop: 14 }}>
