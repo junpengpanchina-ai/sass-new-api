@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const AUTH_DEBUG_VERSION = "hard-oauth-2026-05-05-01";
+const AUTH_DEBUG_VERSION = "pkce-oauth-2026-05-11-01";
 
 const PHONE_COUNTRIES = [
   { label: "United States", code: "+1", example: "4155552671" },
@@ -241,39 +241,29 @@ export default function LoginPage() {
     }
   };
 
-  async function onGoogleLogin() {
+  async function startOAuthProvider(provider: "google" | "github") {
     setError(null);
-    setOauthTip("已点击 Google 登录，准备跳转授权页…");
+    if (provider === "google") {
+      setOauthTip("已点击 Google 登录，准备跳转授权页…");
+    }
     setLoading(true);
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-      console.log("[auth]", AUTH_DEBUG_VERSION);
-      console.log("[auth] Google login clicked");
-      console.log("[auth] NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl);
-
-      if (!supabaseUrl) {
-        const msg = "Missing NEXT_PUBLIC_SUPABASE_URL";
-        console.error("[auth]", msg);
-        setError(msg);
-        alert(msg);
-        return;
-      }
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) throw new Error("Supabase 未配置：请设置 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
       const redirectTo = getAuthRedirectTo();
-      const safeNext = getSafeNextPath();
-      const authorizeUrl =
-        `${supabaseUrl.replace(/\/$/, "")}/auth/v1/authorize` +
-        `?provider=google` +
-        `&redirect_to=${encodeURIComponent(redirectTo)}` +
-        `&state=${encodeURIComponent(JSON.stringify({ next: safeNext }))}`;
+      console.log("[auth]", AUTH_DEBUG_VERSION);
+      console.log(`[auth] ${provider} signInWithOAuth`, { redirectTo });
 
-      console.log("[auth] redirectTo:", redirectTo);
-      console.log("[auth] authorizeUrl:", authorizeUrl);
-
-      window.location.href = authorizeUrl;
+      // Must use SDK (not manual /authorize URL): browser client uses PKCE and stores
+      // code_verifier before redirect; manual URLs miss code_challenge → exchange fails.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
+      if (error) throw error;
     } catch (err) {
-      console.error("[auth] Unexpected Google login error:", err);
+      console.error("[auth] OAuth start failed:", err);
       const msg = err instanceof Error ? err.message : "OAuth 登录失败";
       setError(msg);
       alert(msg);
@@ -283,39 +273,13 @@ export default function LoginPage() {
     }
   }
 
-  const handleGithubLogin = () => {
-    try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  async function onGoogleLogin() {
+    await startOAuthProvider("google");
+  }
 
-      console.log("[auth]", AUTH_DEBUG_VERSION);
-      console.log("[auth] GitHub login clicked");
-      console.log("[auth] NEXT_PUBLIC_SUPABASE_URL:", supabaseUrl);
-
-      if (!supabaseUrl) {
-        const message = "Missing NEXT_PUBLIC_SUPABASE_URL";
-        console.error("[auth]", message);
-        alert(message);
-        return;
-      }
-
-      const redirectTo = getAuthRedirectTo();
-      const safeNext = getSafeNextPath();
-
-      const authorizeUrl =
-        `${supabaseUrl.replace(/\/$/, "")}/auth/v1/authorize` +
-        `?provider=github` +
-        `&redirect_to=${encodeURIComponent(redirectTo)}` +
-        `&state=${encodeURIComponent(JSON.stringify({ next: safeNext }))}`;
-
-      console.log("[auth] GitHub redirectTo:", redirectTo);
-      console.log("[auth] GitHub authorizeUrl:", authorizeUrl);
-
-      window.location.href = authorizeUrl;
-    } catch (error) {
-      console.error("[auth] GitHub login failed:", error);
-      alert("GitHub login failed. Please try again.");
-    }
-  };
+  async function handleGithubLogin() {
+    await startOAuthProvider("github");
+  }
 
   return (
     <main className="container" style={{ maxWidth: 920 }}>
@@ -396,7 +360,7 @@ export default function LoginPage() {
               <span style={{ width: 8, height: 8, borderRadius: 999, background: "rgba(124,92,255,0.9)" }} />
               {loading ? "正在跳转…" : "使用 Google 登录"}
             </button>
-            <button className="btn" type="button" onClick={handleGithubLogin} disabled={loading}>
+            <button className="btn" type="button" onClick={() => void handleGithubLogin()} disabled={loading}>
               <span style={{ width: 8, height: 8, borderRadius: 999, background: "rgba(255,255,255,0.9)" }} />
               使用 GitHub 登录
             </button>

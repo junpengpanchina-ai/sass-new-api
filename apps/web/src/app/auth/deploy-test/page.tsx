@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function maskUrl(url: string | undefined) {
   if (!url) return "（未设置）";
@@ -13,26 +15,42 @@ function maskUrl(url: string | undefined) {
   }
 }
 
+function buildOAuthRedirectTo() {
+  if (typeof window === "undefined") return "";
+  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const callbackBase = isLocal ? window.location.origin : "https://tokfai.com";
+  const next = "/dashboard";
+  return `${callbackBase}/auth/callback?next=${encodeURIComponent(next)}`;
+}
+
 export default function AuthDeployTestPage() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const hasAnon = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const [oauthErr, setOauthErr] = useState<string | null>(null);
 
   const links = useMemo(() => {
     if (typeof window === "undefined") return null;
     const origin = window.location.origin;
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    const callbackBase = isLocal ? origin : "https://tokfai.com";
-    const next = "/dashboard";
-    const redirectTo = `${callbackBase}/auth/callback?next=${encodeURIComponent(next)}`;
-    const base = supabaseUrl?.replace(/\/$/, "") ?? "";
-    const google =
-      base &&
-      `${base}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}&state=${encodeURIComponent(JSON.stringify({ next }))}`;
-    const github =
-      base &&
-      `${base}/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(redirectTo)}&state=${encodeURIComponent(JSON.stringify({ next }))}`;
-    return { origin, isLocal, redirectTo, google, github };
-  }, [supabaseUrl]);
+    const redirectTo = buildOAuthRedirectTo();
+    return { origin, isLocal, redirectTo };
+  }, []);
+
+  async function startOAuth(provider: "google" | "github") {
+    setOauthErr(null);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) throw new Error("Supabase 未配置");
+      const redirectTo = buildOAuthRedirectTo();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
+      if (error) throw error;
+    } catch (e) {
+      setOauthErr(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   return (
     <main className="container" style={{ maxWidth: 720, padding: "24px 16px" }}>
@@ -93,9 +111,9 @@ export default function AuthDeployTestPage() {
         </section>
 
         <section style={{ marginTop: 18 }}>
-          <h2 style={{ fontSize: 15, margin: "0 0 8px" }}>4. OAuth 硬跳转（与正式登录一致）</h2>
+          <h2 style={{ fontSize: 15, margin: "0 0 8px" }}>4. OAuth（PKCE：必须用 SDK，勿手拼 authorize URL）</h2>
           <p className="muted" style={{ fontSize: 13, margin: "0 0 10px" }}>
-            <strong>redirect_to</strong>（应指向本站 callback）：
+            <strong>redirect_to</strong>（传给 <code>signInWithOAuth</code>）：
           </p>
           <pre
             style={{
@@ -112,21 +130,18 @@ export default function AuthDeployTestPage() {
             {links?.redirectTo ?? "（等待客户端渲染）"}
           </pre>
           <div style={{ display: "grid", gap: 10 }}>
-            {links?.google ? (
-              <a className="btn btnPrimary" href={links.google}>
-                测试 Google OAuth（硬跳转）
-              </a>
-            ) : (
-              <span className="muted" style={{ fontSize: 13 }}>
-                无法生成 Google 链接：缺少 NEXT_PUBLIC_SUPABASE_URL
-              </span>
-            )}
-            {links?.github ? (
-              <a className="btn" href={links.github}>
-                测试 GitHub OAuth（硬跳转）
-              </a>
-            ) : null}
+            <button className="btn btnPrimary" type="button" onClick={() => void startOAuth("google")}>
+              测试 Google OAuth（PKCE）
+            </button>
+            <button className="btn" type="button" onClick={() => void startOAuth("github")}>
+              测试 GitHub OAuth（PKCE）
+            </button>
           </div>
+          {oauthErr ? (
+            <p className="muted" style={{ fontSize: 13, marginTop: 10, color: "#ffb4b4" }}>
+              {oauthErr}
+            </p>
+          ) : null}
         </section>
 
         <section style={{ marginTop: 18 }}>

@@ -35,8 +35,6 @@ export default function DebugAuthPage() {
     const next = new URLSearchParams(window.location.search).get("next");
     const safeNext = isSafeNextPath(next) ? String(next) : "/dashboard";
     const redirectTo = buildAuthRedirectTo();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const authorizeBase = supabaseUrl ? `${supabaseUrl.replace(/\/$/, "")}/auth/v1/authorize` : null;
     return {
       href: window.location.href,
       origin: window.location.origin,
@@ -44,19 +42,36 @@ export default function DebugAuthPage() {
       next,
       safeNext,
       redirectTo,
-      supabaseUrl: supabaseUrl ?? null,
-      githubAuthorizeUrl: authorizeBase
-        ? `${authorizeBase}?provider=github&redirect_to=${encodeURIComponent(redirectTo)}&state=${encodeURIComponent(
-            JSON.stringify({ next: safeNext }),
-          )}`
-        : null,
-      googleAuthorizeUrl: authorizeBase
-        ? `${authorizeBase}?provider=google&redirect_to=${encodeURIComponent(redirectTo)}&state=${encodeURIComponent(
-            JSON.stringify({ next: safeNext }),
-          )}`
-        : null,
     };
   }, []);
+
+  async function startOAuthDebug(provider: "google" | "github") {
+    setLoading(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) throw new Error("Supabase 未配置：请设置 NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY");
+      const redirectTo = buildAuthRedirectTo();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo, skipBrowserRedirect: true },
+      });
+      if (error) throw error;
+      setLog({
+        at: new Date().toISOString(),
+        computed,
+        oauthStart: { provider, redirectTo, url: data.url ?? null },
+      });
+      if (data.url) window.location.assign(data.url);
+    } catch (e) {
+      setLog({
+        at: new Date().toISOString(),
+        computed,
+        oauthStartError: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function runClientChecks() {
     setLoading(true);
@@ -132,14 +147,6 @@ export default function DebugAuthPage() {
     }
   }
 
-  function hardRedirect(url: string | null) {
-    if (!url) {
-      setLog({ at: new Date().toISOString(), computed, error: "Missing NEXT_PUBLIC_SUPABASE_URL" });
-      return;
-    }
-    window.location.href = url;
-  }
-
   return (
     <main className="container" style={{ maxWidth: 980 }}>
       <div className="card" style={{ padding: 18 }}>
@@ -165,13 +172,16 @@ export default function DebugAuthPage() {
         </div>
 
         <div className="card" style={{ padding: 14, marginTop: 14, background: "rgba(255,255,255,0.04)" }}>
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>OAuth hard redirect（仅测试）</div>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>OAuth（PKCE：signInWithOAuth）</div>
+          <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+            不要手动拼 <code>/authorize</code>，否则会缺少 <code>code_challenge</code>，回调 exchange 会失败。
+          </p>
           <div style={{ display: "grid", gap: 10 }}>
-            <button className="btn" type="button" onClick={() => hardRedirect(computed?.googleAuthorizeUrl ?? null)} disabled={loading}>
-              跳转 Google authorize
+            <button className="btn" type="button" onClick={() => void startOAuthDebug("google")} disabled={loading}>
+              启动 Google OAuth（PKCE）
             </button>
-            <button className="btn" type="button" onClick={() => hardRedirect(computed?.githubAuthorizeUrl ?? null)} disabled={loading}>
-              跳转 GitHub authorize
+            <button className="btn" type="button" onClick={() => void startOAuthDebug("github")} disabled={loading}>
+              启动 GitHub OAuth（PKCE）
             </button>
             <div className="muted" style={{ fontSize: 12 }}>
               redirect_to: <code style={{ opacity: 0.9 }}>{computed?.redirectTo ?? "(loading...)"}</code>
