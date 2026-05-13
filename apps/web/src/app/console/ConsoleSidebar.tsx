@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { CurrentUserBadge } from "@/app/_components/CurrentUserBadge";
 import { UserActions } from "@/app/dashboard/_components/UserActions";
+import { getAccountDisplayLabel } from "@/lib/authDisplayAccount";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const nav = [
@@ -16,12 +18,14 @@ const nav = [
 
 export async function ConsoleSidebar() {
   let isAdmin = false;
+  let accountLabel: string | null = null;
   try {
     const supabase = await createSupabaseServerClient();
     const {
       data: { user }
     } = await supabase.auth.getUser();
     if (user) {
+      accountLabel = getAccountDisplayLabel(user);
       const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       isAdmin = data?.role === "admin";
     }
@@ -41,6 +45,7 @@ export async function ConsoleSidebar() {
           <div className="muted" style={{ fontSize: 13 }}>
             控制台
           </div>
+          {accountLabel ? <CurrentUserBadge label={accountLabel} /> : null}
         </div>
 
         <nav style={{ display: "grid", gap: 8, marginTop: 8 }}>

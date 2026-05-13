@@ -1,8 +1,11 @@
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { LoginExistingSessionCard } from "@/app/_components/LoginExistingSessionCard";
+import { getAccountDisplayLabel } from "@/lib/authDisplayAccount";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const AUTH_DEBUG_VERSION = "pkce-oauth-2026-05-11-01";
@@ -66,29 +69,59 @@ export default function LoginPage() {
   const [sendCount, setSendCount] = useState(0);
   const [cooldown, setCooldown] = useState(0);
 
+  const [sessionProbe, setSessionProbe] = useState<"pending" | "anon" | "authed">("pending");
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
+
   useEffect(() => {
     setNext(getSafeNextPath());
   }, []);
 
-  // If session already exists (e.g. user bookmarked /login), skip middleware and redirect here.
   useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) {
+      setSessionProbe("anon");
+      setSessionUser(null);
+      return;
+    }
+
     let cancelled = false;
-    (async () => {
+
+    void (async () => {
       try {
-        const supabase = createSupabaseBrowserClient();
-        if (!supabase) return;
         const { data } = await supabase.auth.getSession();
-        if (!cancelled && data.session) {
-          window.location.replace(getSafeNextPath());
+        if (cancelled) return;
+        if (data.session?.user) {
+          setSessionUser(data.session.user);
+          setSessionProbe("authed");
+        } else {
+          setSessionUser(null);
+          setSessionProbe("anon");
         }
       } catch {
-        /* env missing or client-only */
+        if (!cancelled) {
+          setSessionUser(null);
+          setSessionProbe("anon");
+        }
       }
     })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setSessionUser(session.user);
+        setSessionProbe("authed");
+      } else {
+        setSessionUser(null);
+        setSessionProbe("anon");
+      }
+    });
+
     return () => {
       cancelled = true;
+      sub.subscription.unsubscribe();
     };
   }, []);
+
+  const goToDashboardHref = useMemo(() => withLoginSuccessParam(next), [next]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -279,6 +312,27 @@ export default function LoginPage() {
 
   async function handleGithubLogin() {
     await startOAuthProvider("github");
+  }
+
+  if (sessionProbe === "pending") {
+    return (
+      <main className="container" style={{ maxWidth: 920 }}>
+        <div className="card muted" style={{ padding: 22, textAlign: "center" }}>
+          Checking sign-in status…
+        </div>
+      </main>
+    );
+  }
+
+  if (sessionProbe === "authed" && sessionUser) {
+    return (
+      <main className="container" style={{ maxWidth: 920 }}>
+        <LoginExistingSessionCard
+          accountLabel={getAccountDisplayLabel(sessionUser)}
+          goToDashboardHref={goToDashboardHref}
+        />
+      </main>
+    );
   }
 
   return (
