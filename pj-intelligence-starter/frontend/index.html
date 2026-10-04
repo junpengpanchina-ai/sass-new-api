@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PJ Intelligence V0.1</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="name">PJ Intelligence V0.1</span>
+      <span class="status" id="health">状态：LOCAL</span>
+    </div>
+    <div class="top-right">
+      <span class="note" id="note"></span>
+      <button id="collect" type="button">立即采集</button>
+    </div>
+  </header>
+  <main class="workspace">
+    <aside class="side">
+      <section class="block">
+        <h2>Trend Radar</h2>
+        <div id="radar"></div>
+      </section>
+      <section class="block signals">
+        <h2>Signals</h2>
+        <div id="signals"></div>
+      </section>
+    </aside>
+    <section class="block hot">
+      <h2>Hot Now</h2>
+      <div id="list"></div>
+    </section>
+    <section class="block intel">
+      <h2>Intelligence Panel</h2>
+      <div id="detail"></div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
